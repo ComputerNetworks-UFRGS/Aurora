@@ -1,0 +1,71 @@
+<domain type='kvm'>
+  <name>{{vm.name}}</name>
+  <memory>{{vm.memory}}</memory>
+  <vcpu>{{vm.vcpu}}</vcpu>
+  <os>
+    <type arch='i686'>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <pae/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='{{ vm.image.file_format }}' cache='none'/>
+      <source file='{{ vm.disk_path }}'/>
+      <target dev='hda' bus='{{ vm.image.target_dev }}'/>
+      <!--<address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>-->
+    </disk>
+    <controller type='usb' index='0'>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+    </controller>
+    <controller type='ide' index='0'>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+    </controller>
+    {% for interface in vm.virtualinterface_set.all %}
+      <interface type='{{ interface.if_type }}'>
+      {% if interface.if_type == "bridge" %}
+          <source bridge='virbr1'/>
+          <virtualport type='openvswitch'/>
+	  <!--<script path='/etc/qemu-ifup-manager-ovs-{{vm.host.hostname}}'/>-->
+      {% endif %}
+      {% if interface.if_type == "network" %}
+          <source network='default'/>
+      {% endif %}
+      {% if interface.if_type == "ethernet" %}
+          <target dev='{{ interface.target }}'/>
+          <script path='/etc/qemu-ifup-aurora'/>
+      {% endif %} 
+      {% if interface.alias %}
+      	<alias name='{{ interface.alias }}'/>
+      {% endif %} 
+      <mac address='{{ interface.mac_address }}'/>
+      <model type='ne2k_pci'/>
+    </interface>
+    {% endfor %}
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <input type='mouse' bus='ps2'/>
+    <graphics type='vnc' port='-1' autoport='yes'>
+    	<listen type='address' address='0.0.0.0'/>
+    </graphics>
+    <video>
+      <model type='cirrus' vram='9216' heads='1'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
+    </video>
+    <memballoon model='virtio'>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x05' function='0x0'/>
+    </memballoon>
+  </devices>
+</domain>

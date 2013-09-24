@@ -1,0 +1,22 @@
+{% extends "base-content.html" %}
+{% load url from future %}
+
+{% block content %}
+<div class="container">
+    <h1 class="logo">Aurora CloudManager <sup><small>beta</small></sup></h1>
+    <form class="form-signin" method="post" action="{% url 'django.contrib.auth.views.login' %}">
+        {% csrf_token %}
+        <h2>Login</h2>
+        {% if form.errors %}
+          <p class="text-error">Your username and password didn't match. Please try again.</p>
+        {% endif %}
+        <input name="username" type="text" class="input-block-level" placeholder="Username">
+        <input name="password" type="password" class="input-block-level" placeholder="Password">
+        <button class="btn btn-primary" type="submit">Login</button>
+        <input type="hidden" name="next" value="{{ next }}" />
+        <p>&nbsp;</p>
+        <a class="btn btn-block btn-google" href="{% url "socialauth_begin" "google" %}"><i class="icon-google"></i> Sign in with Google</a>
+        <a class="btn btn-block btn-facebook" href="{% url "socialauth_begin" "facebook" %}"><i class="icon-facebook"></i> Sign in with Facebook</a>
+    </form>
+</div>
+{% endblock %}

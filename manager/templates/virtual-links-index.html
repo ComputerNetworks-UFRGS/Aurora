@@ -1,0 +1,85 @@
+{% extends "base-content.html" %}
+{% block content-body %}
+<div class="row">
+  <div class="span12">
+  {% if link_list.object_list %}
+    <table class="table table-striped table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Start</th>
+          <th>End</th>
+          <th>Slice</th>
+          <th>State</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for link in link_list.object_list %}
+        <tr>
+          <td>
+            <a href="/Aurora/manager/virtual_links/{{ link.id }}/">
+              {{ link.if_start.attached_to.name }} - 
+              {{ link.if_start.alias }} ({{ link.if_start.mac_address }})
+            </a>
+          </td>
+          <td>
+          	{{ link.if_end.attached_to.name }} - 
+            {{ link.if_end.alias }} ({{ link.if_end.mac_address }})
+          </td>
+          <td>{{ link.belongs_to_slice.name }}</td>
+          <td>{{ link.current_state }}</td>
+          <td><a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_links/{{ link.id }}/delete/">Delete</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div> 
+</div>
+<div class="row">
+  <div class="span6">
+    <div class="pagination">
+      <ul>
+        {% if link_list.has_previous %}
+        <li>
+          <a href="?p={{ link_list.previous_page_number }}&s={{request.GET.s}}">&laquo;</a>
+        {% else %}
+        <li class="disabled">
+            <a href="#">&laquo;</a>
+        {% endif %}
+        </li>
+        <li>
+          <span class="current">
+            Page {{ link_list.number }} of {{ link_list.paginator.num_pages }}
+          </span>
+        </li>
+        {% if link_list.has_next %}
+        <li>
+            <a href="?p={{ link_list.next_page_number }}&s={{request.GET.s}}">&raquo;</a>
+        {% else %}
+        <li class="disabled">
+            <a href="#" class="disabled">&raquo;</a>
+        {% endif %}
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="span6">
+    <div class="pagination">
+      <form class="form-inline pull-right" action="/Aurora/manager/virtual_machines/" method="get">{% csrf_token %}
+        {% for field in form %}
+          {% if not field.is_hidden %}
+            {{ field.label }} 
+          {% endif %}
+          {{ field }}
+        {% endfor %}
+        <button class="btn btn-primary" type="submit">Filter</button>
+      </form>
+    </div>
+  </div>
+</div>
+  {% else %}
+    <p><b>No Links are available.</b></p>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

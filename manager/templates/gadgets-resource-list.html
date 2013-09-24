@@ -1,0 +1,20 @@
+{% if resource_list %}
+    <table class="table table-striped table-hover table-bordered">
+      <thead>
+        <tr>
+            <th>Resource Type</th>
+            <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for resource in resource_list %}
+        <tr>
+            <td>{{ resource.label }}</a></td>
+            <td class="number">{{ resource.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+{% else %}
+    <p><b>No resource list available.</b></p>
+{% endif %}

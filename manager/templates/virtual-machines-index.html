@@ -1,0 +1,113 @@
+{% extends "base-content.html" %}
+{% load utils %}
+{% block content-body %}
+<div class="row">
+  <div class="span12">
+  {% if vm_list.object_list %}
+    <table class="table table-striped table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Slice</th>
+          <th>Host</th>
+          <th>Memory</th>
+          <th>VCPU</th>
+          <th>State</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for vm in vm_list.object_list %}
+        <tr>
+            <td><a href="/Aurora/manager/virtual_machines/{{ vm.id }}/">{{ vm.name }}</a></td>
+            <td>{{ vm.belongs_to_slice.name }}</td>
+            <td>{{ vm.host }}</td>
+            <td>{{ vm.memory|unit_convert:"KB" }}</td>
+            <td>{{ vm.vcpu }}</td>
+            <td>{{ vm.current_state }}</td>
+            <td>
+            	{% if vm.current_state != "not deployed" %}
+            		<a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/xml/" class="no-ajax">XML</a>
+				{% else %}
+				    <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+            	{% endif %}
+                {% if vm.current_state == "paused by user" %}
+                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/resume/">Resume</a>
+                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/stop/">Stop</a>
+                {% endif %}
+                {% if vm.current_state == "running" %}
+                    <div class="btn-group">
+                        <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/shutdown/">Shutdown</a>
+                        <a class="btn btn-mini dropdown-toggle" data-toggle="dropdown">
+                          <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                          <li><a href="/Aurora/manager/virtual_machines/{{ vm.id }}/stop/">Stop</a></li>
+                          <li><a href="/Aurora/manager/virtual_machines/{{ vm.id }}/suspend/">Suspend</a></li>
+                        </ul>
+                    </div>
+            		<a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/migrate/">Migrate</a>
+                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/console/" onclick="window.open(this.href,'','width=800,height=600'); return false;">Console</a>
+                {% endif %}
+                {% if vm.current_state == "shut off" %}
+                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/start/">Start</a>
+                    <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                {% endif %}
+                {% if vm.current_state == "Could not read state" %}
+                    <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="row">
+  <div class="span6">
+    <div class="pagination">
+      <ul>
+        {% if vm_list.has_previous %}
+        <li>
+          <a href="?p={{ vm_list.previous_page_number }}&s={{request.GET.s}}">&laquo;</a>
+        {% else %}
+        <li class="disabled">
+            <a href="#">&laquo;</a>
+        {% endif %}
+        </li>
+        <li>
+          <span class="current">
+            Page {{ vm_list.number }} of {{ vm_list.paginator.num_pages }}
+          </span>
+        </li>
+        {% if vm_list.has_next %}
+        <li>
+            <a href="?p={{ vm_list.next_page_number }}&s={{request.GET.s}}">&raquo;</a>
+        {% else %}
+        <li class="disabled">
+            <a href="#" class="disabled">&raquo;</a>
+        {% endif %}
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="span6">
+    <div class="pagination">
+      <form class="form-inline pull-right" action="/Aurora/manager/virtual_machines/" method="get">{% csrf_token %}
+        {% for field in form %}
+          {% if not field.is_hidden %}
+            {{ field.label }}
+          {% endif %}
+          {{ field }}
+        {% endfor %}
+        <button class="btn btn-primary" type="submit">Filter</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% else %}
+    <p><b>No VMs are available.</b></p>
+{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base-content.html" %}
+{% block content-body %}
+<div class="row">
+  <div class="span12">
+    {% if form.non_field_errors %}<p class="text-error">{{ form.non_field_errors }}</p>{% endif %}
+    <form class="form-horizontal" action="{{ form.action }}" method="post" {% if form.is_multipart %} enctype="multipart/form-data" {% endif %}>{% csrf_token %}
+      {% for field in form %}
+        <div class="control-group">
+          <label class="control-label" for="id_{{ field.html_name }}">{{ field.label }}</label>
+          <div class="controls">
+            {{ field }}<span class="help-inline">{{field.help_text}}</span>
+            {% for error in field.errors %}<p class="text-error">{{ error }}</p>{% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+        <div class="control-group">
+          <div class="controls">
+            <button class="btn btn-primary" type="submit">Submit</button>
+          </div>
+        </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

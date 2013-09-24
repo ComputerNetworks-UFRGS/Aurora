@@ -1,0 +1,78 @@
+{% extends "base-content.html" %}
+{% load utils %}
+{% block content-body %}
+<div class="row">
+  <div class="span12">
+  {% if vr_list.object_list %}
+    <table class="table table-striped table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Slice</th>
+          <th>Host</th>
+          <th>State</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for vr in vr_list.object_list %}
+        <tr>
+            <td><a href="/Aurora/manager/virtual_routers/{{ vr.id }}/">{{ vr.name }}</a></td>
+            <td>{{ vr.belongs_to_slice.name }}</td>
+            <td>{{ vr.host }}</td>
+            <td>{{ vr.current_state }}</td>
+            <td><a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_routers/{{ vr.id }}/delete/">Delete</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="row">
+  <div class="span6">
+    <div class="pagination">
+      <ul>
+      {% if vr_list.has_previous %}
+        <li>
+          <a href="?p={{ vr_list.previous_page_number }}&s={{request.GET.s}}">&laquo;</a>
+      {% else %}
+        <li class="disabled">
+            <a href="#">&laquo;</a>
+      {% endif %}
+        </li>
+        <li>
+          <span class="current">
+            Page {{ vr_list.number }} of {{ vr_list.paginator.num_pages }}
+          </span>
+        </li>
+      {% if vr_list.has_next %}
+        <li>
+            <a href="?p={{ vr_list.next_page_number }}&s={{s}}">&raquo;</a>
+      {% else %}
+        <li class="disabled">
+            <a href="#" class="disabled">&raquo;</a>
+      {% endif %}
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="span6">
+    <div class="pagination">
+      <form class="form-inline pull-right" action="/Aurora/manager/virtual_routers/" method="get">{% csrf_token %}
+        {% for field in form %}
+          {% if not field.is_hidden %}
+            {{ field.label }} 
+          {% endif %}
+          {{ field }}
+        {% endfor %}
+        <button class="btn btn-primary" type="submit">Filter</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% else %}
+    <p><b>No Virtual Routers are available.</b></p>
+{% endif %}
+  </div>
+</div>
+{% endblock %}

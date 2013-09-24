@@ -1,0 +1,46 @@
+{% extends "base-content.html" %}
+{% block content-body %}
+{% if event %}
+<div class="row">
+  <div class="span12">
+    <table class="table table-striped table-hover table-bordered">
+      <tbody>
+        <tr>
+          <td><b>Name</b></td>
+          <td>{{ event.name }}</td>
+        </tr>
+        <tr>
+          <td><b>Description</b></td>
+          <td>{{ event.description }}</td>
+        </tr>
+        <tr>
+          <td><b>State</b></td>
+          <td>{{ event.get_state_display }}</td>
+        </tr>
+        <tr>
+          <td><b>Belongs to Slice</b></td>
+          <td>{{ event.belongs_to_slice.name }}</td>
+        </tr>
+        <tr>
+          <td><b>Metric</b></td>
+          <td>{{ event.metric }}</td>
+        </tr>
+        <tr>
+          <td><b>Relational Operation</b></td>
+          <td>{{ event.get_relational_operation_display }}</td>
+        </tr>
+        <tr>
+          <td><b>Value</b></td>
+          <td>{{ event.value }}</td>
+        </tr>
+        <tr>
+          <td><b>Program</b></td>
+          <td>{{ event.program }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+

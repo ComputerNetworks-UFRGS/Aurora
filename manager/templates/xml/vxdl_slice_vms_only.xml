@@ -1,0 +1,82 @@
+<virtualInfrastructure id="VMOnlySlice" owner="admin">
+	<startDate>2012-02-21T08:00:00</startDate>
+	<totalTime>P10D</totalTime>
+	<vNode id="Node0">
+		<cpu>
+			<cores>
+				<simple>1</simple>
+			</cores>
+			<frequency>
+				<simple>1</simple>
+				<unit>GHz</unit>
+			</frequency>
+		</cpu>
+		<memory>
+			<simple>256</simple>
+			<unit>MB</unit>
+		</memory>
+		<storage>
+			<interval>
+				<min>500</min>
+			</interval>
+			<unit>MB</unit>
+		</storage>
+		<image>Debian Squeeze</image>
+		<interface>
+			<alias>veth0</alias>
+			<type>NAT</type>
+		</interface>
+	</vNode>	
+	<vNode id="Node1">
+		<cpu>
+			<cores>
+				<simple>1</simple>
+			</cores>
+			<frequency>
+				<simple>1</simple>
+				<unit>GHz</unit>
+			</frequency>
+		</cpu>
+		<memory>
+			<simple>256</simple>
+			<unit>MB</unit>
+		</memory>
+		<storage>
+			<interval>
+				<min>500</min>
+			</interval>
+			<unit>MB</unit>
+		</storage>
+		<image>Debian Squeeze</image>
+		<interface>
+			<alias>veth0</alias>
+			<type>NAT</type>
+		</interface>
+	</vNode>
+	<vNode id="Node2">
+		<cpu>
+			<cores>
+				<simple>1</simple>
+			</cores>
+			<frequency>
+				<simple>1</simple>
+				<unit>GHz</unit>
+			</frequency>
+		</cpu>
+		<memory>
+			<simple>256</simple>
+			<unit>MB</unit>
+		</memory>
+		<storage>
+			<interval>
+				<min>500</min>
+			</interval>
+			<unit>MB</unit>
+		</storage>
+		<image>Debian Squeeze</image>
+		<interface>
+			<alias>veth0</alias>
+			<type>NAT</type>
+		</interface>
+	</vNode>
+</virtualInfrastructure>

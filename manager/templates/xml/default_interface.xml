@@ -1,0 +1,18 @@
+<interface type='{{ interface.if_type }}'>
+    {% if interface.if_type == "bridge" %}
+        <source bridge='virbr1'/>
+        <virtualport type='openvswitch'/>
+    {% endif %}
+    {% if interface.if_type == "network" %}
+        <source network='default'/>
+    {% endif %}
+    {% if interface.if_type == "ethernet" %}
+        <target dev='{{ interface.target }}'/>
+        <script path='/etc/qemu-ifup-aurora'/>
+    {% endif %}
+    {% if interface.alias %}
+        <alias name='{{ interface.alias }}'/>
+    {% endif %}
+    <mac address='{{ interface.mac_address }}'/>
+    <model type='ne2k_pci'/>
+</interface>

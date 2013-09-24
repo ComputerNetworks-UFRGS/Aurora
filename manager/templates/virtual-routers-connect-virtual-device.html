@@ -1,0 +1,13 @@
+{% extends "base-content.html" %}
+{% block content-body %}
+{% if virtual_router and virtual_interface %}
+<form action="/Aurora/manager/virtual_routers/{{ virtual_router.id }}/connect_virtual_device/{{ virtual_interface.id }}/" method="post">{% csrf_token %}
+<table>
+{{ form.as_table }}
+</table>
+<input type="submit" value="Submit" />
+</form>
+{% else %}
+    <p>Virtual Router or Virtual Interface not found.</p>
+{% endif %}
+{% endblock %}

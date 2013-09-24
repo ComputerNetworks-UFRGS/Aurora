@@ -1,0 +1,32 @@
+{% load utils %}
+{% if cpu_stats %}
+    <table class="table table-striped table-hover table-bordered">
+      <thead>
+        <tr>
+            <th>Type</th>
+            <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+            <td>Kernel</td>
+            <td class="number">{{ cpu_stats|cpu_stats_percentage:"kernel" }}%</td>
+        </tr>
+        <tr>
+        	<td>Idle</td>
+            <td class="number">{{ cpu_stats|cpu_stats_percentage:"idle" }}%</td>
+        </tr>
+        <tr>
+        	<td>User</td>
+            <td class="number">{{ cpu_stats|cpu_stats_percentage:"user" }}%</td>
+        </tr>
+        <tr>
+        	<td>IO/Wait</td>
+            <td class="number">{{ cpu_stats|cpu_stats_percentage:"iowait" }}%</td>
+        </tr>
+      </tbody>
+    </table>
+{% else %}
+    <p><b>No statistics available.</b></p>
+{% endif %}
+

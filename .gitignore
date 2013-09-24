@@ -1,0 +1,9 @@
+*.log
+*.pot
+*.pyc
+*.pyo
+local_settings.py
+extras/noVNC
+tags
+.project
+.pydevproject

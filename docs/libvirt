@@ -1,0 +1,64 @@
+# Information about Libvirt configuration
+
+# Notes:
+Version 0.9.10 or newer is required because of 
+the language bindings for virNodeGetCPUStats and virNodeGetMemoryStats 
+(mainly for monitoring).
+
+# Installation:
+
+- Download sources: 
+wget http://libvirt.org/sources/libvirt-0.9.10.tar.gz
+
+- Run (many dependencies may be required):
+./configure --prefix /usr/local/<computerXX>
+
+- Run:
+make
+make install
+
+Libvirt binaries will be installed in the prefix directory. 
+One separate directory is necessary for every host because they
+all share the same filesystem in ANT.
+
+# Installing the init.d script (or just start daemon on /etc/rc.local)
+It is possible to create a init script on /etc/init.d/.
+Configuration files for every host should be loaded by
+the libvirtd daemon (/etc/init.d/libvirt-bin). This should be 
+configured in /etc/default/libvirt-bin:
+
+# options passed to libvirtd
+HNAME=`hostname -s`
+libvirtd_opts="-d --listen -f /root/$HNAME/libvirtd.conf"
+
+Therefore, the file /root/<computerXX>/libvirtd.conf should exist. 
+Under the scripts directory there is an example libvirt.conf file and
+a script to generate it automatically for every host (inside /root/ path).
+
+The init script (/etc/init.d/libvirt-bin) should be set to 
+start the libvirt daemon in the correct location: 
+
+/usr/local/<computerXX>/sbin/libvirtd
+
+A sample for this file is also available under the scripts directory.
+
+Alternativelly, one can just run the command line to start libvirtd 
+on /etc/rc.local adding the following lines:
+
+HNAME=`hostname -s`
+/usr/local/$HNAME/sbin/libvirtd -d --listen -f /root/$HNAME/libvirtd.conf
+
+# FAQ & Known Issues
+
+1) Copying virtual machines disk images generates new network interfaces (eth1, eth2, etc.)
+
+Debian distributions (and possibly some others) have these udev rules to 
+detect when new hardware is introduced. This causes a problem when virtual 
+machine disks are copied, because every new VM instance will receive a new mac address.
+
+So solve this simply remove the udev rules:   
+rm /lib/udev/rules.d/75-persistent-net-generator.rules
+
+Links:
+http://wiki.debian.org/udev/
+http://www.ducea.com/2008/09/01/remove-debian-udev-persistent-net-rules/ 
