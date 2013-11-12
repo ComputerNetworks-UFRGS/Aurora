@@ -464,19 +464,9 @@ class VirtualMachine(VirtualDevice):
         try:
             # Details of deployment times
             t0 = time.time()
-
-            # Create a copy of the VM disk
-            self.disk_path = self.image.path + "." + str(self.id)
-            # OLD WAY: shutil.copy(self.image.path, self.disk_path)
-            out = commands.getstatusoutput(
-                'scp ' + self.image.path + ' ' +
-                'root@' + self.host.hostname +
-                ':' + self.disk_path
-            )
-            if out[0] != 0:
-                raise self.VirtualMachineException(
-                    "Could not copy image: " + out[1]
-                )
+            
+            # Will copy the image to the destination host
+            self.disk_path = self.image.deploy(self)
 
             # Time spent copying image
             copy_time = time.time() - t0

@@ -1,3 +1,4 @@
+import commands
 import logging
 from django.db import models
 import os
@@ -42,6 +43,36 @@ class Image(BaseModel):
         db_index=True
     )
     description = models.TextField(blank=True, null=True)
+
+    # Deploys the image to a host based on the virtual machine object it 
+    # is associated with
+    def deploy(self, virtual_machine):
+        # Create a copy of the VM disk
+        disk_path = self.path + "." + str(virtual_machine.id)
+
+        # OLD WAY: shutil.copy(self.image.path, self.disk_path)
+
+        # First sync the local image remotelly to speedup future copies
+        out = commands.getstatusoutput(
+            'rsync -u ' + self.path + ' ' +
+            'root@' + virtual_machine.host.hostname +
+            ':' + self.path
+        )
+        if out[0] != 0:
+            raise self.ImageException(
+                "Could not copy image: " + out[1]
+            )
+
+        # Then copy the image for the virtual machine 
+        out = commands.getstatusoutput(
+            'ssh root@' + virtual_machine.host.hostname + ' ' + 
+            '"cp -f ' + self.path + ' ' + disk_path + '"'
+        )
+        if out[0] != 0:
+            raise self.ImageException(
+                "Could not copy image: " + out[1]
+            )
+        return disk_path
 
     # Current size on disk of this image
     def get_size(self):
