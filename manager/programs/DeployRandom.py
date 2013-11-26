@@ -8,7 +8,7 @@ from manager.models.virtual_machine import VirtualMachine
 from manager.models.virtual_router import VirtualRouter
 
 # Configure logging for the module name
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Aurora")
 
 # Extends the DeploymentProgram class to inherit basic functionalities
 class DeployRandom(DeploymentProgram):
@@ -72,13 +72,27 @@ class DeployRandom(DeploymentProgram):
 
         total_define_time = 0
 
+        # Whait so the controller recognizes the VMs (workarround)
+        time.sleep(5)
+
         # Create Links
         t0 = time.time()
-        try:
-            for link in links:
-                link.establish()
-        except link.VirtualLinkException as e:
-            raise self.DeploymentException('Unable establish links: ' + str(e))
+        max_retries = 20
+        retry = 0
+        for link in links:
+            logger.debug("Establishing link: %s" % str(link))
+            while retry <= max_retries:
+                try:
+                    logger.debug("Establish Try: %d" % retry)
+                    link.establish()
+                    retry = 0
+                    break
+                except link.VirtualLinkException as e:
+                    logger.debug("Establish exception: %d" % retry)
+                    retry += 1
+                    time.sleep(5)
+                    if retry == max_retries:
+                        raise self.DeploymentException('Unable establish links: ' + str(e))
 
         total_establish_time = time.time() - t0
 

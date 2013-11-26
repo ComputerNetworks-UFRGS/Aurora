@@ -35,6 +35,9 @@ class VirtualLink(BaseModel):
     state = models.CharField(max_length=10, choices=LINK_STATES, default='created', db_index=True)
 
     def current_state(self):
+        # TODO: Machete master
+        return self.get_state_display()
+
         # Check first internal state
         if self.state == 'created' or self.state == 'waiting':
             return self.get_state_display()
@@ -95,36 +98,49 @@ class VirtualLink(BaseModel):
         # Update local state to waiting
         self.state = 'waiting'
         self.save()
-
-        # Convert link to json to send to controller
-        json_link = json.dumps(link_info)
-
-        headers = {"Content-type": "application/json"}
-        try:
-            # openflow controller is currently running on localhost
-            conn = httplib.HTTPConnection("localhost", 8000)
-            conn.request("PUT", "/manager/link/create/" + str(self.id), json_link, headers)
-            response = conn.getresponse()
-            # response will be a json formatted string containing information about the creation of the link
-            json_data = response.read()
-            conn.close()
-            logger.debug("Virtual Link <id: %s> was sent to OpenFlow Controller!" % self.id)
-            logger.debug("Response: %s %s - Data: %s" % (response.status, response.reason, json_data))
-            # Server response is correct
-            if response.status == 200:
-                # Update local state to waiting
-                self.state = 'establish'
-                self.save()
-                return True
-            else:
-                logger.warning("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
-                raise self.VirtualLinkException("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
-        except Exception as e:
+        # TODO: temporary implementation with Floodlight
+        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 143.54.12.77:8080 --add --name link' + str(link_info['id']) + ' --type eth --src ' + link_info['mac_start'] + ' --dst ' + link_info['mac_end'])
+        if out[0] != 0:
+            logger.warning("Could not establish link:" + out[1])
             # Update local state to waiting
             self.state = 'failed'
             self.save()
-            logger.warning("Problems communicating with the OpenFlow Controller: %s" % str(e))
-            raise self.VirtualLinkException("Problems communicating with the OpenFlow Controller: %s" % str(e))
+            raise self.VirtualLinkException("Could not establish link: " + out[1])
+
+        self.state = 'establish'
+        self.save()
+        return True
+
+        # OLD WAY WITH POX
+        # Convert link to json to send to controller
+        #json_link = json.dumps(link_info)
+
+        #headers = {"Content-type": "application/json"}
+        #try:
+        #    # openflow controller is currently running on localhost
+        #    conn = httplib.HTTPConnection("localhost", 8000)
+        #    conn.request("PUT", "/manager/link/create/" + str(self.id), json_link, headers)
+        #    response = conn.getresponse()
+        #    # response will be a json formatted string containing information about the creation of the link
+        #    json_data = response.read()
+        #    conn.close()
+        #    logger.debug("Virtual Link <id: %s> was sent to OpenFlow Controller!" % self.id)
+        #    logger.debug("Response: %s %s - Data: %s" % (response.status, response.reason, json_data))
+        #    # Server response is correct
+        #    if response.status == 200:
+        #        # Update local state to waiting
+        #        self.state = 'establish'
+        #        self.save()
+        #        return True
+        #    else:
+        #        logger.warning("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
+        #        raise self.VirtualLinkException("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
+        #except Exception as e:
+        #    # Update local state to waiting
+        #    self.state = 'failed'
+        #    self.save()
+        #    logger.warning("Problems communicating with the OpenFlow Controller: %s" % str(e))
+        #    raise self.VirtualLinkException("Problems communicating with the OpenFlow Controller: %s" % str(e))
 
         return True
 
@@ -204,34 +220,47 @@ class VirtualLink(BaseModel):
         if current_state == 'Created':
             return True
 
-        headers = {"Content-type": "application/json"}
-        try:
-            # openflow controller is currently running on localhost
-            conn = httplib.HTTPConnection("localhost", 8000)
-            conn.request("GET", "/manager/link/delete/" + str(self.id), "", headers)
-            response = conn.getresponse()
-            # response will be a json formatted string containing information about the deletion of the link
-            json_data = response.read()
-            conn.close()
-            logger.debug("Virtual Link <id: %s> set to be deleted on OpenFlow Controller!" % self.id)
-            logger.debug("Response: %s %s - Data: %s" % (response.status, response.reason, json_data))
-            # Server response is correct
-            if response.status == 200:
-                # Will set state to inactive, probably this link will be deleted from the database after this action
-                self.state = 'inactive'
-                self.save()
-                return True
-            elif response.status == 404:
-                logger.warning("Link not found in the OpenFlow Controller: %s" % self.id)
-                raise self.VirtualLinkException("Link not found in the OpenFlow Controller: %s" % self.id)
-            else:
-                logger.warning("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
-                raise self.VirtualLinkException("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
-        except Exception as e:
-            logger.warning("Problems communicating with the OpenFlow Controller: %s" % str(e))
-            raise self.VirtualLinkException("Problems communicating with the OpenFlow Controller: %s" % str(e))
+        # TODO: temporary implementation with Floodlight
+        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 143.54.12.77:8080 --delete --name link' + str(self.id))
+        if out[0] != 0:
+            logger.warning("Could not establish link:" + out[1])
+            # Update local state to waiting
+            self.state = 'failed'
+            self.save()
+            raise self.VirtualLinkException("Could not establish link: " + out[1])
 
+        self.state = 'inactive'
+        self.save()
         return True
+
+        #headers = {"Content-type": "application/json"}
+        #try:
+        #    # openflow controller is currently running on localhost
+        #    conn = httplib.HTTPConnection("localhost", 8000)
+        #    conn.request("GET", "/manager/link/delete/" + str(self.id), "", headers)
+        #    response = conn.getresponse()
+        #    # response will be a json formatted string containing information about the deletion of the link
+        #    json_data = response.read()
+        #    conn.close()
+        #    logger.debug("Virtual Link <id: %s> set to be deleted on OpenFlow Controller!" % self.id)
+        #    logger.debug("Response: %s %s - Data: %s" % (response.status, response.reason, json_data))
+        #    # Server response is correct
+        #    if response.status == 200:
+        #        # Will set state to inactive, probably this link will be deleted from the database after this action
+        #        self.state = 'inactive'
+        #        self.save()
+        #        return True
+        #    elif response.status == 404:
+        #        logger.warning("Link not found in the OpenFlow Controller: %s" % self.id)
+        #        raise self.VirtualLinkException("Link not found in the OpenFlow Controller: %s" % self.id)
+        #    else:
+        #        logger.warning("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
+        #        raise self.VirtualLinkException("Unexpected response code from OpenFlow Controller (%s %s)" % (response.status, response.reason))
+        #except Exception as e:
+        #    logger.warning("Problems communicating with the OpenFlow Controller: %s" % str(e))
+        #    raise self.VirtualLinkException("Problems communicating with the OpenFlow Controller: %s" % str(e))
+        #
+        #return True
 
     # Deletes all the links on OpenFlow Controller
     def delete_all(self):

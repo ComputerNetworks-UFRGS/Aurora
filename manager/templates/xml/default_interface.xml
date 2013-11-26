@@ -14,5 +14,5 @@
         <alias name='{{ interface.alias }}'/>
     {% endif %}
     <mac address='{{ interface.mac_address }}'/>
-    <model type='ne2k_pci'/>
+    <model type='virtio'/>
 </interface>

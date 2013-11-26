@@ -203,8 +203,8 @@ def console(request, virtual_machine_id):
         # Get the VNC port info on the destination host
         vnc_port = vnc_info['port']
 
-        # Generate a unique port for the WebSocket server in the 60k range
-        vnc_info['port'] = "6" + str(vm.id).zfill(4)
+        # Generate a unique port for the WebSocket server in the 40k range
+        vnc_info['port'] = "4" + str(vm.id).zfill(4)
         # vnc_info['host'] = "manager3.inf.ufrgs.br"
 
         out = commands.getstatusoutput(
