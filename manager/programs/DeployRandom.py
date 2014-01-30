@@ -8,7 +8,7 @@ from manager.models.virtual_machine import VirtualMachine
 from manager.models.virtual_router import VirtualRouter
 
 # Configure logging for the module name
-logger = logging.getLogger("Aurora")
+logger = logging.getLogger(__name__)
 
 # Extends the DeploymentProgram class to inherit basic functionalities
 class DeployRandom(DeploymentProgram):

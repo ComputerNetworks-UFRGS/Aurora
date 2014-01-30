@@ -14,7 +14,7 @@ from manager.models.port import Port
 from manager.models.device import Device
 
 # Configure logging for the module name
-logger = logging.getLogger("Aurora")
+logger = logging.getLogger(__name__)
 
 class Topology():
 

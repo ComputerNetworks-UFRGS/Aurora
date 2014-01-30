@@ -10,7 +10,7 @@ import logging
 import json, httplib
 
 # Configure logging for the module name
-logger = logging.getLogger("Aurora")
+logger = logging.getLogger(__name__)
 
 class StaticFlowPusher(object):
 

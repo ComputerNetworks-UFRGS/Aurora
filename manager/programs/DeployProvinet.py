@@ -56,9 +56,6 @@ class DeployProvinet(DeploymentProgram):
             except BaseModel.ModelException as e:
                 raise self.DeploymentException('Unable to deploy VM ' + str(vm) + ': ' + str(e))
 
-            # Save VM to update host information
-            vm.save()
-
         logger.debug("Total image copy time: %s s" % str(round(total_copy_time, 2)))
         logger.debug("Total VM define time: %s s" % str(round(total_define_time, 2)))
 

@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from manager.programs.deploy_balanced import DeployBalanced
 
 # Configure logging for the module name
-logger = logging.getLogger("Aurora")
+logger = logging.getLogger(__name__)
 
 class Experiment():
     iterations = 30

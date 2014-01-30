@@ -87,19 +87,33 @@ class VirtualLink(BaseModel):
         if current_state == 'Established' or current_state == 'Waiting':
             return True
 
-        # Do OpenFlow stuff
-        link_info = {
-            'id': self.id,
-            'mac_start': self.if_start.mac_address,
-            'mac_end': self.if_end.mac_address,
-            'state': 'Waiting'
-        }
+        bridge = "virbr2"
+        eth1 = self.if_start.target
+        eth2 = self.if_end.target
+
+        if eth1 == "" or eth2 == "":
+            logger.warning("Invalid pair of interfaces (" + eth1 + "-" + eth2 + ")")
+            raise self.VirtualLinkException("Invalid pair of interfaces (" + eth1 + "-" + eth2 + ")")
+
+        # Add the interface to the default bridge
+        # TODO: Use the remote host openvswitch connection
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --may-exist add-port "' + bridge + '" ' + eth1)
+        if out[0] != 0:
+            logger.warning("Could not add port (" + eth1 + ") to bridge (" + bridge + "): " + out[1])
+            raise self.VirtualLinkException("Could not add port (" + eth1 + ") to bridge (" + bridge + "): " + out[1])
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --may-exist add-port "' + bridge + '" ' + eth2)
+        if out[0] != 0:
+            logger.warning("Could not add port (" + eth2 + ") to bridge (" + bridge + "): " + out[1])
+            raise self.VirtualLinkException("Could not add port (" + eth2 + ") to bridge (" + bridge + "): " + out[1])
 
         # Update local state to waiting
         self.state = 'waiting'
         self.save()
         # TODO: temporary implementation with Floodlight
-        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 143.54.12.77:8080 --add --name link' + str(link_info['id']) + ' --type eth --src ' + link_info['mac_start'] + ' --dst ' + link_info['mac_end'])
+        if_start = self.if_start.target
+        if_end = self.if_end.target
+        bridge = "virbr2"
+        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 127.0.0.1:8080 --add --name link' + str(self.id) + ' --type phy --src ' + if_start + ':' + bridge + ' --dst ' + if_end + ':' + bridge)
         if out[0] != 0:
             logger.warning("Could not establish link:" + out[1])
             # Update local state to waiting
@@ -113,6 +127,13 @@ class VirtualLink(BaseModel):
 
         # OLD WAY WITH POX
         # Convert link to json to send to controller
+        # Do OpenFlow stuff
+        #link_info = {
+        #    'id': self.id,
+        #    'mac_start': self.if_start.mac_address,
+        #    'mac_end': self.if_end.mac_address,
+        #    'state': 'Waiting'
+        #}
         #json_link = json.dumps(link_info)
 
         #headers = {"Content-type": "application/json"}
@@ -221,7 +242,7 @@ class VirtualLink(BaseModel):
             return True
 
         # TODO: temporary implementation with Floodlight
-        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 143.54.12.77:8080 --delete --name link' + str(self.id))
+        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 127.0.0.1:8080 --delete --name link' + str(self.id))
         if out[0] != 0:
             logger.warning("Could not establish link:" + out[1])
             # Update local state to waiting

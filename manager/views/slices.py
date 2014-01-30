@@ -143,6 +143,12 @@ def new_remote(request):
         s.owner = User.objects.all()[0]
         s.name = request.POST['name']
 
+        try:
+            deployed_with = DeploymentProgram.objects.get(name="DeployProvinet")
+        except DeploymentProgram.DoesNotExist as e:
+            message = "ERROR: " + str(e)
+            return HttpResponse(message)
+
         # Get VXDL description for slice
         vxdl = request.POST['vxdl_file']
     
@@ -154,17 +160,23 @@ def new_remote(request):
             s.save_from_vxdl(vxdl)
             if program.deploy(s):
                 s.state = "deployed"
+                s.deployed_with = deployed_with
                 s.save()
                 message = "OK" 
+                logger.info("Slice deployed remotely %s!" % (str(s)))
         except Exception as e:
             message = "ERROR: " + str(e)
+            logger.warning("Error deploying remotely %s: %s!" % (str(s), str(e)))
         except Slice.VXDLException as e:
-            message = "ERROR: Problems creating slice from VXDL: " + e.msg
+            message = "ERROR: Problems creating slice from VXDL: " + str(e)
+            logger.warning("Error deploying remotely %s: Problems creating slice from VXDL %s!" % (str(s), str(e)))
         except program.DeploymentException as e:
             message = "ERROR: Problems deploying slice: " + str(e)
+            logger.warning("Error deploying remotely %s: Problems deploying slice %s!" % (str(s), str(e)))
 
     else:
         message = "ERROR: Only POST method is allowed"
+        logger.warning("Error deploying remotely %s: Only POST method is allowed!" % (str(s)))
     
     return HttpResponse(message)
 
@@ -175,6 +187,7 @@ def delete_remote(request, slice_name):
     try:
         slc = Slice.objects.get(name=slice_name)
     except Slice.DoesNotExist:
+        logger.debug("Attempt to delete slice %s!" % (slice_name))
         raise Http404
     
     message = None

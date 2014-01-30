@@ -22,7 +22,7 @@ from manager.programs.OptimizeEnergy import OptimizeEnergy
 from manager.programs.OptimizeHops import OptimizeHops
 
 # Configure logging for the module name
-logger = logging.getLogger("Aurora")
+logger = logging.getLogger(__name__)
 
 class Experiment():
     iterations = 1

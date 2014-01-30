@@ -197,7 +197,7 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
-        'Aurora': {
+        'manager': {
             'handlers': ['file'],
             'level': 'DEBUG',
             'propagate': True,

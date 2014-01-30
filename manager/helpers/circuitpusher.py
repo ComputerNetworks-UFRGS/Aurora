@@ -52,13 +52,14 @@ import time
 # Syntax:
 #   circuitpusher --controller {IP:REST_PORT} --add --name {CIRCUIT_NAME} --type ip --src {IP} --dst {IP} 
 #   circuitpusher --controller {IP:REST_PORT} --add --name {CIRCUIT_NAME} --type eth --src {mac} --dst {mac} 
+#   circuitpusher --controller {IP:REST_PORT} --add --name {CIRCUIT_NAME} --type phy --src {port:switch} --dst {port:switch} 
 #   circuitpusher --controller {IP:REST_PORT} --delete --name {CIRCUIT_NAME}
 
 parser = argparse.ArgumentParser(description='Circuit Pusher')
 parser.add_argument('--controller', dest='controllerRestIp', action='store', default='localhost:8080', help='controller IP:RESTport, e.g., localhost:8080 or A.B.C.D:8080')
 parser.add_argument('--add', dest='action', action='store_const', const='add', default='add', help='action: add, delete')
 parser.add_argument('--delete', dest='action', action='store_const', const='delete', default='add', help='action: add, delete')
-parser.add_argument('--type', dest='type', action='store', default='ip', help='valid types: ip|eth')
+parser.add_argument('--type', dest='type', action='store', default='ip', help='valid types: ip|eth|phy')
 parser.add_argument('--src', dest='srcAddress', action='store', default='0.0.0.0', help='source address: if type=ip, A.B.C.D')
 parser.add_argument('--dst', dest='dstAddress', action='store', default='0.0.0.0', help='destination address: if type=ip, A.B.C.D')
 parser.add_argument('--name', dest='circuitName', action='store', default='circuit-1', help='name for circuit, e.g., circuit-1')
@@ -93,27 +94,77 @@ if args.action=='add':
     
     if args.type == "eth":
         command = "curl -s http://%s/wm/device/?mac=%s" % (args.controllerRestIp, args.srcAddress)
-    else:
+    elif args.type == "ip":
         command = "curl -s http://%s/wm/device/?ipv4=%s" % (args.controllerRestIp, args.srcAddress)
+    elif args.type == "phy":
+        # Need to translate vif:bridge to port:dpid
+        command = "curl -s http://%s/wm/core/controller/switches/json" % (args.controllerRestIp)
+        srcPort, srcSwitch = args.srcAddress.split(":")
+    else:
+        print "Invalid type: %s" % args.type
+        sys.exit()
+
     result = os.popen(command).read()
     parsedResult = json.loads(result)
     print command+"\n"
-    sourceSwitch = parsedResult[0]['attachmentPoint'][0]['switchDPID']
-    sourcePort = parsedResult[0]['attachmentPoint'][0]['port']
+    if args.type == "eth" or args.type == "ip":
+        if len(parsedResult) > 0:
+            sourceSwitch = parsedResult[0]['attachmentPoint'][0]['switchDPID']
+            sourcePort = parsedResult[0]['attachmentPoint'][0]['port']
+        else:
+            print "Could not find device: %s" % args.srcAddress
+            sys.exit()
+    else:
+        # Search for switch and port pair
+        for sw in parsedResult:
+            srcSwitchDpid = srcPortNumber = None
+            for pt in sw['ports']:
+                if pt['name'] == srcPort:
+                    srcPortNumber = pt['portNumber']
+                elif pt['name'] == srcSwitch:
+                    srcSwitchDpid = sw['dpid']
+
+            if not srcSwitchDpid is None or srcPortNumber is None:
+                sourceSwitch = srcSwitchDpid
+                sourcePort = srcPortNumber
     
     if args.type == "eth":
         command = "curl -s http://%s/wm/device/?mac=%s" % (args.controllerRestIp, args.dstAddress)
-    else:
+    elif args.type == "ip":
         command = "curl -s http://%s/wm/device/?ipv4=%s" % (args.controllerRestIp, args.dstAddress)
-    result = os.popen(command).read()
-    parsedResult = json.loads(result)
-    print command+"\n"
-    destSwitch = parsedResult[0]['attachmentPoint'][0]['switchDPID']
-    destPort = parsedResult[0]['attachmentPoint'][0]['port']
-    
+    elif args.type == "phy":
+        # No need to read again the topology
+        command = None
+        dstPort, dstSwitch = args.dstAddress.split(":")
+    if not command is None:
+        result = os.popen(command).read()
+        parsedResult = json.loads(result)
+        print command+"\n"
+
+    if args.type == "eth" or args.type == "ip":
+        if len(parsedResult) > 0:
+            destSwitch = parsedResult[0]['attachmentPoint'][0]['switchDPID']
+            destPort = parsedResult[0]['attachmentPoint'][0]['port']
+        else:
+            print "Could not find device: %s" % args.dstAddress
+            sys.exit()
+    else:
+        # Search for switch and port pair
+        for sw in parsedResult:
+            dstSwitchDpid = dstPortNumber = None
+            for pt in sw['ports']:
+                if pt['name'] == dstPort:
+                    dstPortNumber = pt['portNumber']
+                elif pt['name'] == dstSwitch:
+                    dstSwitchDpid = sw['dpid']
+
+            if not dstSwitchDpid is None or dstPortNumber is None:
+                destSwitch = dstSwitchDpid
+                destPort = dstPortNumber
+
     print "Creating circuit:"
-    print "from source device at switch %s port %s" % (sourceSwitch,sourcePort)
-    print "to destination device at switch %s port %s"% (destSwitch,destPort)
+    print "from source device at switch %s port %s" % (sourceSwitch, sourcePort)
+    print "to destination device at switch %s port %s" % (destSwitch, destPort)
     
     # retrieving route from source to destination
     # using Routing rest API
@@ -131,7 +182,6 @@ if args.action=='add':
             ap1Dpid = parsedResult[i]['switch']
             ap1Port = parsedResult[i]['port']
             print ap1Dpid, ap1Port
-            
         else:
             ap2Dpid = parsedResult[i]['switch']
             ap2Port = parsedResult[i]['port']
@@ -150,36 +200,46 @@ if args.action=='add':
             # this will most possibly be relaxed later, but for now we
             # encode each flow entry's name with both switch dpid, user
             # specified name, and flow type (f: forward, r: reverse, farp/rarp: arp)
+            if args.type == "eth" or args.type == "ip":
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"src-%s\":\"%s\", \"dst-%s\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".f", addrType, args.srcAddress, addrType, args.dstAddress, "0x800", ap1Port, ap2Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
 
-            command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"src-%s\":\"%s\", \"dst-%s\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".f", addrType, args.srcAddress, addrType, args.dstAddress, "0x800", ap1Port, ap2Port, controllerRestIp)
-            result = os.popen(command).read()
-            print command
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".farp", "0x806", ap1Port, ap2Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
 
-            command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".farp", "0x806", ap1Port, ap2Port, controllerRestIp)
-            result = os.popen(command).read()
-            print command
+                # Allow OSPF traffic
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"protocol\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".fospf", "0x800", 89, ap1Port, ap2Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
 
-            # Allow OSPF traffic
-            command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"protocol\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".fospf", "0x800", 89, ap1Port, ap2Port, controllerRestIp)
-            result = os.popen(command).read()
-            print command
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"src-%s\":\"%s\", \"dst-%s\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".r", addrType, args.dstAddress, addrType, args.srcAddress, "0x800", ap2Port, ap1Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
 
-            command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"src-%s\":\"%s\", \"dst-%s\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".r", addrType, args.dstAddress, addrType, args.srcAddress, "0x800", ap2Port, ap1Port, controllerRestIp)
-            result = os.popen(command).read()
-            print command
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".rarp", "0x806", ap2Port, ap1Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
 
-            command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".rarp", "0x806", ap2Port, ap1Port, controllerRestIp)
-            result = os.popen(command).read()
-            print command
+                # Allow OSPF traffic
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"protocol\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".rospf", "0x800", 89, ap2Port, ap1Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
 
-            # Allow OSPF traffic
-            command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"ether-type\":\"%s\", \"protocol\":\"%s\", \"cookie\":\"0\", \"priority\":\"32768\", \"ingress-port\":\"%s\",\"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".rospf", "0x800", 89, ap2Port, ap1Port, controllerRestIp)
-            result = os.popen(command).read()
-            print command
-            
+            else:
+                # Physical links need only one rule
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"priority\":\"32768\", \"ingress-port\":\"%s\", \"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".f", ap1Port, ap2Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
+
+                command = "curl -s -d '{\"switch\": \"%s\", \"name\":\"%s\", \"priority\":\"32768\", \"ingress-port\":\"%s\", \"active\":\"true\", \"actions\":\"output=%s\"}' http://%s/wm/staticflowentrypusher/json" % (ap1Dpid, ap1Dpid+"."+args.circuitName+".r", ap2Port, ap1Port, controllerRestIp)
+                result = os.popen(command).read()
+                print command
+
             # store created circuit attributes in local ./circuits.json
             datetime = time.asctime()
-            circuitParams = {'name':args.circuitName, 'Dpid':ap1Dpid, 'inPort':ap1Port, 'outPort':ap2Port, 'datetime':datetime}
+            circuitParams = {'name':args.circuitName, 'type': args.type, 'Dpid':ap1Dpid, 'inPort':ap1Port, 'outPort':ap2Port, 'datetime':datetime}
             str = json.dumps(circuitParams)
             circuitDb.write(str+"\n")
 
@@ -207,17 +267,10 @@ elif args.action=='delete':
             circuitExists = True
 
             sw = data['Dpid']
-            print data, sw
+            circuitType = data['type']
+            print data, sw, circuitType
 
             command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".f", sw, controllerRestIp)
-            result = os.popen(command).read()
-            print command, result
-
-            command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".farp", sw, controllerRestIp)
-            result = os.popen(command).read()
-            print command, result
-
-            command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".fospf", sw, controllerRestIp)
             result = os.popen(command).read()
             print command, result
 
@@ -225,13 +278,22 @@ elif args.action=='delete':
             result = os.popen(command).read()
             print command, result
 
-            command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".rarp", sw, controllerRestIp)
-            result = os.popen(command).read()
-            print command, result            
+            if circuitType == "ip" or circuitType == "eth":
+                command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".farp", sw, controllerRestIp)
+                result = os.popen(command).read()
+                print command, result
 
-            command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".rospf", sw, controllerRestIp)
-            result = os.popen(command).read()
-            print command, result            
+                command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".fospf", sw, controllerRestIp)
+                result = os.popen(command).read()
+                print command, result
+
+                command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".rarp", sw, controllerRestIp)
+                result = os.popen(command).read()
+                print command, result            
+
+                command = "curl -X DELETE -d '{\"name\":\"%s\", \"switch\":\"%s\"}' http://%s/wm/staticflowentrypusher/json" % (sw+"."+args.circuitName+".rospf", sw, controllerRestIp)
+                result = os.popen(command).read()
+                print command, result            
             
         else:
             circuitDb.write(line)
