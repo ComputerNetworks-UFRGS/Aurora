@@ -15,7 +15,7 @@
         <button class="btn btn-primary" type="submit">Login</button>
         <input type="hidden" name="next" value="{{ next }}" />
         <p>&nbsp;</p>
-        <a class="btn btn-block btn-google" href="{% url "socialauth_begin" "google" %}"><i class="icon-google"></i> Sign in with Google</a>
+        <a class="btn btn-block btn-google" href="{% url "socialauth_begin" "google-oauth2" %}"><i class="icon-google"></i> Sign in with Google</a>
         <a class="btn btn-block btn-facebook" href="{% url "socialauth_begin" "facebook" %}"><i class="icon-facebook"></i> Sign in with Facebook</a>
     </form>
 </div>
