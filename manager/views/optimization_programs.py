@@ -145,7 +145,7 @@ def web_services(request, program_name):
     file_path = program.file.name[0:-3].replace("/", ".")
     # Generata a list to extract the classname
     program_classname = file_path.split(".")[-1]
-    program_path = 'Aurora.manager.' + file_path
+    program_path = 'manager.' + file_path
     try:
         program_module = __import__(program_path, fromlist=[program_classname])
         program_class = getattr(program_module, program_classname)

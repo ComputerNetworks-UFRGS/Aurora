@@ -161,6 +161,8 @@ INCLUDE_URI="/Aurora/static/manager/js/noVNC/";
 <script>
 window.onload = function () {
     UI.updateSetting('host', window.location.hostname)
+    //TODO: Temporary hack for SBRC 2014
+    //UI.updateSetting('host', 'noc.inf.ufrgs.br')
     UI.updateSetting('port', '{{ vnc_info.port }}')
     UI.connect()
 };

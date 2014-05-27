@@ -113,7 +113,7 @@ class VirtualLink(BaseModel):
         if_start = self.if_start.target
         if_end = self.if_end.target
         bridge = "virbr2"
-        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 127.0.0.1:8080 --add --name link' + str(self.id) + ' --type phy --src ' + if_start + ':' + bridge + ' --dst ' + if_end + ':' + bridge)
+        out = commands.getstatusoutput('/home/jwickboldt/Aurora/manager/helpers/circuitpusher.py --controller 127.0.0.1:8080 --add --name link' + str(self.id) + ' --type phy --src ' + if_start + ':' + bridge + ' --dst ' + if_end + ':' + bridge)
         if out[0] != 0:
             logger.warning("Could not establish link:" + out[1])
             # Update local state to waiting
@@ -242,7 +242,7 @@ class VirtualLink(BaseModel):
             return True
 
         # TODO: temporary implementation with Floodlight
-        out = commands.getstatusoutput('/home/juliano/Aurora/manager/helpers/circuitpusher.py --controller 127.0.0.1:8080 --delete --name link' + str(self.id))
+        out = commands.getstatusoutput('/home/jwickboldt/Aurora/manager/helpers/circuitpusher.py --controller 127.0.0.1:8080 --delete --name link' + str(self.id))
         if out[0] != 0:
             logger.warning("Could not establish link:" + out[1])
             # Update local state to waiting
@@ -329,6 +329,12 @@ class VirtualLink(BaseModel):
             logger.warning("Invalid pair of interfaces (" + eth + "-" + bridge + ")")
             raise self.VirtualLinkException("Invalid pair of interfaces (" + eth + "-" + bridge + ")")
 
+        # First remove interface from previous ovs (if it was somewhere else)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 port-to-br ' + eth)
+        if out[0] == 0:
+            # Interface was found at another switch
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 del-port "' + out[1] + '" ' + eth)
+
         out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 add-port "' + bridge + '" ' + eth)
         if out[0] != 0:
             logger.warning("Could not add port (" + eth + ") to bridge (" + bridge + "): " + out[1])
@@ -368,7 +374,7 @@ class VirtualLink(BaseModel):
         bridge1 = self.if_start.attached_to.virtualrouter.dev_name
         bridge2 = self.if_end.attached_to.virtualrouter.dev_name
         # TODO: Get correct hostname here
-        out = commands.getstatusoutput('ssh root@aurora.inf.ufrgs.br "ip link add name ' + eth1 + ' type veth peer name ' + eth2 + '; ifconfig ' + eth1 + ' up ; ifconfig ' + eth2 + ' up"')
+        out = commands.getstatusoutput('ssh root@acdc.inf.ufrgs.br "ip link add name ' + eth1 + ' type veth peer name ' + eth2 + '; ifconfig ' + eth1 + ' up ; ifconfig ' + eth2 + ' up"')
         if out[0] != 0:
             logger.warning("Could not add link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
             raise self.VirtualLinkException("Could not add link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
@@ -404,7 +410,7 @@ class VirtualLink(BaseModel):
 
         # ip link will delete the pair of interfaces even if we delete only eth1
         # TODO: Get correct hostname here
-        out = commands.getstatusoutput('ssh root@aurora.inf.ufrgs.br "ip link delete ' + eth1 + '"')
+        out = commands.getstatusoutput('ssh root@acdc.inf.ufrgs.br "ip link delete ' + eth1 + '"')
         if out[0] != 0:
             logger.warning("Could not delete link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
             raise self.VirtualLinkException("Could not delete link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])

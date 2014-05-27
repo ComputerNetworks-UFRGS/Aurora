@@ -12,5 +12,4 @@ class CoolMetric(Metric):
     # Implementation of deployment method
     def collect(self):
         #logger.debug("Metric colleting invoked")
-        return 0
-        #return random.random()
+        return random.random()

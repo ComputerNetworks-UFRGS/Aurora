@@ -146,7 +146,7 @@ def web_services(request, metric_name):
     file_path = metric.file.name[0:-3].replace("/", ".")
     # Generata a list to extract the classname
     metric_classname = file_path.split(".")[-1]
-    metric_path = 'Aurora.manager.' + file_path
+    metric_path = 'manager.' + file_path
     try:
         metric_module = __import__(metric_path, fromlist=[metric_classname])
         metric_class = getattr(metric_module, metric_classname)

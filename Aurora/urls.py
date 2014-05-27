@@ -1,22 +1,18 @@
-from django.conf.urls.defaults import patterns, include, url
+from django.conf.urls import patterns, include, url
 
-# Enabling Django contrib admin
 from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('',
     # Social auth urls
-    url(r'', include('social_auth.urls')),
+    url('', include('social.apps.django_app.urls', namespace='social')),
     # Aurora urls
     url(r'^$', 'manager.views.pages.index', name='home'),
     url(r'^not_implemented/$', 'manager.views.pages.not_implemented',
         name='not_implemented'),
     url(r'^manager/', include('manager.urls')),
 
-    # Django admin docs
-    url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
-
-    # Django admin url
+    # Django Admin
     url(r'^admin/', include(admin.site.urls)),
 
     # User login/logout

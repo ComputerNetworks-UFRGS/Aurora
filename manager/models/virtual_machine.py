@@ -62,9 +62,9 @@ class VirtualMachine(VirtualDevice):
     memory = models.PositiveIntegerField()
     vcpu = models.PositiveIntegerField()
 
-    feature_acpi = models.BooleanField()
-    feature_apic = models.BooleanField()
-    feature_pae = models.BooleanField()
+    feature_acpi = models.BooleanField(default=False)
+    feature_apic = models.BooleanField(default=False)
+    feature_pae = models.BooleanField(default=False)
 
     clock = models.CharField(max_length=10)
 

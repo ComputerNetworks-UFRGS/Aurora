@@ -117,4 +117,3 @@ class DeployRandom(DeploymentProgram):
                 find_resource = False
         
         return candidate
-

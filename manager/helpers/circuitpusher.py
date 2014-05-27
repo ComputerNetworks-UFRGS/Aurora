@@ -70,8 +70,8 @@ print args
 controllerRestIp = args.controllerRestIp
 
 # first check if a local file exists, which needs to be updated after add/delete
-if os.path.exists('/home/juliano/Aurora/manager/helpers/circuits.json'):
-    circuitDb = open('/home/juliano/Aurora/manager/helpers/circuits.json','r')
+if os.path.exists('/home/jwickboldt/Aurora/manager/helpers/circuits.json'):
+    circuitDb = open('/home/jwickboldt/Aurora/manager/helpers/circuits.json','r')
     lines = circuitDb.readlines()
     circuitDb.close()
 else:
@@ -79,7 +79,7 @@ else:
 
 if args.action=='add':
 
-    circuitDb = open('/home/juliano/Aurora/manager/helpers/circuits.json','a')
+    circuitDb = open('/home/jwickboldt/Aurora/manager/helpers/circuits.json','a')
     
     for line in lines:
         data = json.loads(line)
@@ -252,7 +252,7 @@ if args.action=='add':
 
 elif args.action=='delete':
     
-    circuitDb = open('/home/juliano/Aurora/manager/helpers/circuits.json','w')
+    circuitDb = open('/home/jwickboldt/Aurora/manager/helpers/circuits.json','w')
 
     # removing previously created flow from switches
     # using StaticFlowPusher rest API       
