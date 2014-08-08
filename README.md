@@ -26,7 +26,13 @@ $ git clone https://github.com/ComputerNetworks-UFRGS/Aurora.git
 
 ```
 $ sudo apt-get update
-$ sudo apt-get install apache2 libapache2-mod-wsgi mysql-server python-libvirt python-dev python-django python-pygments python-django-social-auth websockify python-mysqldb
+$ sudo apt-get install apache2 libapache2-mod-wsgi mysql-server python-libvirt python-dev python-pip python-django python-pygments websockify python-mysqldb
+```
+
+*Install [Social Auth](https://github.com/omab/python-social-auth) module from pip*
+
+```
+$ sudo pip install python-social-auth
 ```
 
 ##### Apache configuration for mod_wsgi
