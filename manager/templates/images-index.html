@@ -22,7 +22,7 @@
             <td>{{ image.get_size|unit_convert:"B" }}</td>
             <td>{{ image.description }}</td>
             <td>
-            	<a class="btn btn-mini btn-danger" href="/Aurora/manager/images/{{ image.id }}/delete/">Delete</a>
+            	<a class="btn btn-xs btn-danger" href="/Aurora/manager/images/{{ image.id }}/delete/">Delete</a>
 			</td>
         </tr>
         {% endfor %}

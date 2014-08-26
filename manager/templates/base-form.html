@@ -1,20 +1,26 @@
 {% extends "base-content.html" %}
+{% load widget_tweaks %}
 {% block content-body %}
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
     {% if form.non_field_errors %}<p class="text-error">{{ form.non_field_errors }}</p>{% endif %}
-    <form class="form-horizontal" action="{{ form.action }}" method="post" {% if form.is_multipart %} enctype="multipart/form-data" {% endif %}>{% csrf_token %}
+    <form class="form-horizontal" role="form" action="{{ form.action }}" method="post" {% if form.is_multipart %} enctype="multipart/form-data" {% endif %}>{% csrf_token %}
       {% for field in form %}
-        <div class="control-group">
-          <label class="control-label" for="id_{{ field.html_name }}">{{ field.label }}</label>
-          <div class="controls">
-            {{ field }}<span class="help-inline">{{field.help_text}}</span>
+        <div class="form-group">
+          <label class="control-label col-sm-2" for="id_{{ field.html_name }}">{{ field.label }}</label>
+          <div class="col-sm-6">
+            {{ field | add_class:"form-control" }}
+          </div>
+          <div class="col-sm-4">
+            <span class="help-inline">{{field.help_text}}</span>
             {% for error in field.errors %}<p class="text-error">{{ error }}</p>{% endfor %}
           </div>
         </div>
       {% endfor %}
-        <div class="control-group">
-          <div class="controls">
+        <div class="form-group">
+          <div class="col-sm-2">
+          </div>
+          <div class="col-sm-10">
             <button class="btn btn-primary" type="submit">Submit</button>
           </div>
         </div>

@@ -1,80 +1,54 @@
 /* Sticky footer styles */
-
-html, body {
-height: 100%;
-/* The html and body elements cannot have any padding or margin. */
+html {
+  position: relative;
+  min-height: 100%;
 }
-
-/* Wrapper for page content to push down footer */
-#wrap {
-    min-height: 100%;
-    height: auto !important;
-    height: 100%;
-    /* Negative indent footer by it's height */
-    margin: 0 auto -50px;
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
 }
-
-/* Set the fixed height of the footer here */
-#push, #footer {
-    height: 50px;
+.aurora-footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  /* Set the fixed height of the footer here */
+  height: 50px;
+  background-color: #1b1b1b;
 }
-#footer {
-    background-color: #f5f5f5;
+body > .first-container {
+  padding: 100px 15px 0;
 }
-
-/* Lastly, apply responsive CSS fixes as necessary */
-@media (max-width: 767px) {
-    #footer {
-        margin-left: -20px;
-        margin-right: -20px;
-        padding-left: 20px;
-        padding-right: 20px;
-    }
+.container .text-muted {
+  margin: 15px 0;
+}
+.aurora-footer > .container {
+  padding-right: 15px;
+  padding-left: 15px;
 }
 /* End sticky footer */
 
 /* Main style customizations */
-
 body {
     background-color: #fcfcfc;
 }
-
-.logo {
-    text-align: center;
-    margin: 40px 0 30px 0;
+.navbar-subnav {
+    border-top: 1px solid #666666;
+    top: 50px;
 }
-
-.navbar {
-    margin-bottom: 0;
-}
-
-.navbar .brand {
-    font-weight: bold;
-}
-
-.navbar .navbar-inner, .navbar .navbar-inverse .navbar-inner {
-    padding-top: 4px;
-    padding-bottom: 4px;
-}
-
-.navbar-brand .navbar-inner, #footer {
+.aurora-header, .aurora-footer {
     background-image: url("../img/top-aurora.png");
     background-color: #1b1b1b;
     background-repeat: repeat-x;
     border-color: #252525;
 }
-.navbar-brand .nav li.dropdown.open > .dropdown-toggle {
-    background-color: transparent;
+.navbar-inverse .navbar-brand, .navbar-inverse .navbar-nav>li>a {
+    color: #fcfcfc;
 }
-.navbar-brand .brand, .navbar-brand .nav > li > a {
-    color: #e2e2e2;
+.navbar-brand {
+    font-weight: bold;
 }
-.navbar-brand .brand:hover, .navbar-brand .nav > li > a:hover, .navbar-brand .brand:focus, .navbar-brand .nav > li > a:focus {
-    text-shadow: 0 0 3px #1f1;
-}
-.navbar-subnav {
-    border-top: 1px solid #666666;
-    margin-bottom: 20px;
+.main-action {
+    margin-top: 10px;
 }
 
 .table-bordered thead tr {
@@ -83,6 +57,7 @@ body {
     background-repeat: repeat-x;
 }
 
+/* Widgets */
 .widget .widget-header {
     background-image: linear-gradient(to bottom, #eee, #ddd);
     height: 40px;
@@ -91,16 +66,10 @@ body {
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
 }
-
 .widget .widget-header h5 {
     position: relative;
     left: 10px;
 }
-
-.main-action {
-    margin-top: 10px;
-}
-
 .widget .widget-content {
     background: #fff;
     border: 1px solid #ddd;
@@ -110,6 +79,10 @@ body {
 }
 
 /* Login */
+.logo {
+    text-align: center;
+    margin: 40px 0 30px 0;
+}
 .form-signin {
     max-width: 300px;
     margin: 0 auto 20px;
@@ -118,21 +91,19 @@ body {
     border-radius: 4px;
     background-color: #fff;
 }
-
 .btn-google {
     color: #fefefe;
     text-shadow: 0 1px 1px rgba(20, 112, 148, 0.75);
     background-color: #59c0e8;
-    background-image: -moz-linear-gradient(top, #59c0e8, #1a92c1);
-    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#59c0e8), to(#1a92c1));
-    background-image: -webkit-linear-gradient(top, #59c0e8, #1a92c1);
-    background-image: -o-linear-gradient(top, #59c0e8, #1a92c1);
-    background-image: linear-gradient(to bottom, #59c0e8, #1a92c1);
+    background-image: linear-gradient(to bottom, #59c0e8 0, #1a92c1 100%);
+    background-repeat: repeat-x;
+    border-color: #1a92c1
 }
 
 .btn-google:hover, .btn-google:focus, .btn-google:active{
     color: #fefefe;
     background-color: #1a92c1;
+    background-position:0 -15px;
 }
 
 .btn-facebook {
@@ -160,7 +131,8 @@ body {
     background-position: 0;
 }
 
-/* Footer credits */
-.container .credit {
-	margin: 15px 0;
+/* Forms */
+
+.help-inline {
+    line-height: 34px;
 }

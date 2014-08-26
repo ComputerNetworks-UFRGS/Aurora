@@ -8,7 +8,7 @@ https://docs.djangoproject.com/en/1.6/howto/deployment/wsgi/
 """
 
 import sys
-sys.path.append('/home/jwickboldt/Aurora')
+sys.path.append('/home/aurora/Aurora')
 
 import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Aurora.settings")

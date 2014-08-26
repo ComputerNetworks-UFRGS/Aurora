@@ -22,10 +22,12 @@ SECRET_KEY = 's5)xkjl25k5j7a0fn%a=6jv38oid_srpn^(3wo@uv1+s2ml!9h'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# Tell the toolbar not to adjust your settings automatically
+DEBUG_TOOLBAR_PATCH_SETTINGS = False
+
 TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -36,25 +38,33 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Aurora main application
-    'manager',
     # Social Authentication app
     'social.apps.django_app.default',
+    # Widget Tweaks
+    'widget_tweaks',
+    # Debug toolbar
+    'debug_toolbar',
+    # Aurora main application
+    'manager',
 )
 
 MIDDLEWARE_CLASSES = (
+    # Django defaults
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Debug toolbar
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
+
+INTERNAL_IPS = ('127.0.0.1')
 
 ROOT_URLCONF = 'Aurora.urls'
 
 WSGI_APPLICATION = 'Aurora.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/1.6/ref/settings/#databases
@@ -94,29 +104,31 @@ STATIC_URL = '/Aurora/static/'
 
 MEDIA_ROOT = '/var/www/Aurora/manager/'
 
-#AUTHENTICATION_BACKENDS = (
-    #'social_auth.backends.twitter.TwitterBackend',
-    #'social_auth.backends.facebook.FacebookBackend',
-    #'social_auth.backends.google.GoogleOAuthBackend',
-    #'social_auth.backends.google.GoogleOAuth2Backend',
-    #'social_auth.backends.google.GoogleBackend',
-    #'social_auth.backends.yahoo.YahooBackend',
-    #'social_auth.backends.browserid.BrowserIDBackend',
-    #'social_auth.backends.contrib.linkedin.LinkedinBackend',
-    #'social_auth.backends.contrib.disqus.DisqusBackend',
-    #'social_auth.backends.contrib.livejournal.LiveJournalBackend',
-    #'social_auth.backends.contrib.orkut.OrkutBackend',
-    #'social_auth.backends.contrib.foursquare.FoursquareBackend',
-    #'social_auth.backends.contrib.github.GithubBackend',
-    #'social_auth.backends.contrib.vk.VKOAuth2Backend',
-    #'social_auth.backends.contrib.live.LiveBackend',
-    #'social_auth.backends.contrib.skyrock.SkyrockBackend',
-    #'social_auth.backends.contrib.yahoo.YahooOAuthBackend',
-    #'social_auth.backends.contrib.readability.ReadabilityBackend',
-    #'social_auth.backends.contrib.fedora.FedoraBackend',
-    #'social_auth.backends.OpenIDBackend',
-    #'django.contrib.auth.backends.ModelBackend',
-#)
+AUTHENTICATION_BACKENDS = (
+    #'social.backends.open_id.OpenIdAuth',
+    #'social.backends.google.GoogleOpenId',
+    #'social.backends.google.GoogleOAuth2',
+    'social.backends.google.GooglePlusAuth',
+    #'social.backends.google.GoogleOAuth',
+    #'social.backends.twitter.TwitterOAuth',
+    #'social.backends.yahoo.YahooOpenId',
+
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+TEMPLATE_CONTEXT_PROCESSORS = (
+    'django.contrib.auth.context_processors.auth',
+    'django.core.context_processors.debug',
+    'django.core.context_processors.i18n',
+    'django.core.context_processors.media',
+    'django.core.context_processors.static',
+    'django.core.context_processors.tz',
+    'django.contrib.messages.context_processors.messages',
+    # Social auth
+    'social.apps.django_app.context_processors.backends',
+    'social.apps.django_app.context_processors.login_redirect',
+)
+
 
 # URL to redirect user to login
 LOGIN_URL = '/Aurora/accounts/login/'

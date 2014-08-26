@@ -3,7 +3,7 @@
 {% block content-body %}
 {% if slc %}
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
     <table class="table table-striped table-hover table-bordered">
       <tbody>
         <tr>
@@ -23,15 +23,15 @@
   </div>
 </div>
 <div class="row">
-  <div class="span6">
+  <div class="col-md-6">
     <h4>Deployment and Optimization</h4>
   </div>
-  <div class="span6">
+  <div class="col-md-6">
     <a class="btn btn-primary pull-right" href="/Aurora/manager/slices/{{ slc.id }}/add_optimization_program/">Add Optimization Program</a>
   </div>
 </div>
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
     {% if slc.deployed_with %}
     <table class="table table-striped table-hover table-bordered">
       <thead>
@@ -66,7 +66,7 @@
 	            <td>{{ op.priority }}</td>
 	            <td>{{ op.program.get_scope_display }}</td>
 	            <td>
-	            	<a class="btn btn-mini btn-danger" href="/Aurora/manager/slices/{{ slc.id }}/remove_optimization_program/{{ op.id }}">Remove</a>
+	            	<a class="btn btn-xs btn-danger" href="/Aurora/manager/slices/{{ slc.id }}/remove_optimization_program/{{ op.id }}">Remove</a>
 	            </td>
 	        </tr>
 	        {% endfor %}
@@ -78,7 +78,7 @@
   </div>
 </div>
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
     <h4>VMs</h4>
     {% if vm_list %}
 	    <table class="table table-striped table-hover table-bordered">
@@ -102,18 +102,18 @@
 	            <td>{{ vm.current_state }}</td>
 	            <td>
                 {% if vm.current_state != "not deployed" %}
-                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/xml/" class="no-ajax">XML</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/xml/" class="no-ajax">XML</a>
                 {% else %}
-                    <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                    <a class="btn btn-xs btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
                 {% endif %}
                 {% if vm.current_state == "paused by user" %}
-                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/resume/">Resume</a>
-                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/stop/">Stop</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/resume/">Resume</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/stop/">Stop</a>
                 {% endif %}
                 {% if vm.current_state == "running" %}
                     <div class="btn-group">
-                        <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/shutdown/">Shutdown</a>
-                        <a class="btn btn-mini dropdown-toggle" data-toggle="dropdown">
+                        <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/shutdown/">Shutdown</a>
+                        <a class="btn btn-xs dropdown-toggle" data-toggle="dropdown">
                           <span class="caret"></span>
                         </a>
                         <ul class="dropdown-menu">
@@ -121,15 +121,15 @@
                           <li><a href="/Aurora/manager/virtual_machines/{{ vm.id }}/suspend/">Suspend</a></li>
                         </ul>
                     </div>
-                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/migrate/">Migrate</a>
-                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/console/" onclick="window.open(this.href,'','width=800,height=600'); return false;">Console</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/migrate/">Migrate</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/console/" onclick="window.open(this.href,'','width=800,height=600'); return false;">Console</a>
                 {% endif %}
                 {% if vm.current_state == "shut off" %}
-                    <a class="btn btn-mini" href="/Aurora/manager/virtual_machines/{{ vm.id }}/start/">Start</a>
-                    <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/virtual_machines/{{ vm.id }}/start/">Start</a>
+                    <a class="btn btn-xs btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
                 {% endif %}
                 {% if vm.current_state == "Could not read state" %}
-                    <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                    <a class="btn btn-xs btn-danger" href="/Aurora/manager/virtual_machines/{{ vm.id }}/delete/">Delete</a>
                 {% endif %}
 	            </td>
 	        </tr>
@@ -142,7 +142,7 @@
   </div>
 </div>
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
     <h4>Virtual Routers</h4>
     {% if vr_list %}
 	    <table class="table table-striped table-hover table-bordered">
@@ -161,7 +161,7 @@
             <td>{{ vr.host }}</td>
             <td>{{ vr.current_state }}</td>
             <td>
-	            <a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_routers/{{ vr.id }}/delete/">Delete</a>
+	            <a class="btn btn-xs btn-danger" href="/Aurora/manager/virtual_routers/{{ vr.id }}/delete/">Delete</a>
             </td>
         </tr>
         {% endfor %}
@@ -173,7 +173,7 @@
   </div>
 </div>
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
     <h4>Virtual Links</h4>
     {% if link_list %}
 	    <table class="table table-striped table-hover table-bordered">
@@ -199,7 +199,7 @@
 	           		{{ link.if_end.alias }} ({{ link.if_end.mac_address }})
 	            </td>
 	            <td>{{ link.current_state }}</td>
-	            <td><a class="btn btn-mini btn-danger" href="/Aurora/manager/virtual_links/{{ link.id }}/delete/">Delete</a></td>
+	            <td><a class="btn btn-xs btn-danger" href="/Aurora/manager/virtual_links/{{ link.id }}/delete/">Delete</a></td>
 	        </tr>
 	        {% endfor %}
           </tbody>
@@ -210,7 +210,7 @@
   </div>
 </div>
 <div class="row">
-  <div class="span12">
+  <div class="col-md-12">
 	<h4>Topology</h4>
 	<!-- JIT Library File -->
 	<script language="javascript" type="text/javascript" src="/Aurora/static/manager/js/jit/jit-yc.js"></script>

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.conf.urls import patterns, include, url
 
 from django.contrib import admin
@@ -22,5 +23,11 @@ urlpatterns = patterns('',
         {'template_name': 'pages-logout.html'}),
     url(r'^accounts/login-error/$', 'manager.views.pages.login_error',
         name='login_error'),
-
 )
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns += patterns('',
+        # Debug toolbar urls
+        url(r'^__debug__/', include(debug_toolbar.urls)),
+    )

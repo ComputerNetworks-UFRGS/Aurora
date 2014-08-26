@@ -24,9 +24,9 @@
             <td>{{ s.current_state }}</td>
             <td>
                 {% if s.current_state == "Created" %}
-                    <a class="btn btn-mini" href="/Aurora/manager/slices/{{ s.id }}/deploy/">Deploy</a> 
+                    <a class="btn btn-xs btn-default" href="/Aurora/manager/slices/{{ s.id }}/deploy/">Deploy</a> 
                 {% endif %}
-            <a class="btn btn-mini btn-danger" href="/Aurora/manager/slices/{{ s.id }}/delete/">Delete</a>
+            <a class="btn btn-xs btn-danger" href="/Aurora/manager/slices/{{ s.id }}/delete/">Delete</a>
             </td>
         </tr>
         {% endfor %}
