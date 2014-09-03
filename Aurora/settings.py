@@ -45,7 +45,7 @@ INSTALLED_APPS = (
     # Debug toolbar
     'debug_toolbar',
     # Aurora main application
-    'manager',
+    'cloud',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -102,7 +102,7 @@ USE_TZ = True
 
 STATIC_URL = '/Aurora/static/'
 
-MEDIA_ROOT = '/var/www/Aurora/manager/'
+MEDIA_ROOT = '/var/www/Aurora/cloud/'
 
 AUTHENTICATION_BACKENDS = (
     #'social.backends.open_id.OpenIdAuth',
@@ -156,7 +156,7 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
-        'manager': {
+        'cloud': {
             'handlers': ['file'],
             'level': 'DEBUG',
             'propagate': True,

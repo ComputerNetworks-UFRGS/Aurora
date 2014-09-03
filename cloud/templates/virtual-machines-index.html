@@ -1,0 +1,65 @@
+{% extends "base-content.html" %}
+{% load utils %}
+{% block content-body %}
+  {% if vm_list.object_list %}
+    <table class="table table-striped table-hover table-bordered">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Slice</th>
+          <th>Host</th>
+          <th>Memory</th>
+          <th>VCPU</th>
+          <th>State</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for vm in vm_list.object_list %}
+        <tr>
+            <td><a href="/Aurora/cloud/virtual_machines/{{ vm.id }}/">{{ vm.name }}</a></td>
+            <td>{{ vm.belongs_to_slice.name }}</td>
+            <td>{{ vm.host }}</td>
+            <td>{{ vm.memory|unit_convert:"KB" }}</td>
+            <td>{{ vm.vcpu }}</td>
+            <td>{{ vm.current_state }}</td>
+            <td>
+            	{% if vm.current_state != "not deployed" %}
+            		<a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/xml/" class="no-ajax">XML</a>
+				{% else %}
+				    <a class="btn btn-xs btn-danger" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+            	{% endif %}
+                {% if vm.current_state == "paused by user" %}
+                    <a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/resume/">Resume</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/stop/">Stop</a>
+                {% endif %}
+                {% if vm.current_state == "running" %}
+                    <div class="btn-group">
+                        <a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/shutdown/">Shutdown</a>
+                        <a class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown">
+                          <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                          <li><a href="/Aurora/cloud/virtual_machines/{{ vm.id }}/stop/">Stop</a></li>
+                          <li><a href="/Aurora/cloud/virtual_machines/{{ vm.id }}/suspend/">Suspend</a></li>
+                        </ul>
+                    </div>
+            		<a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/migrate/">Migrate</a>
+                    <a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/console/" onclick="window.open(this.href,'','width=800,height=600'); return false;">Console</a>
+                {% endif %}
+                {% if vm.current_state == "shut off" %}
+                    <a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/start/">Start</a>
+                    <a class="btn btn-xs btn-danger" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                {% endif %}
+                {% if vm.current_state == "Could not read state" or vm.current_state == None %}
+                    <a class="btn btn-xs btn-danger" href="/Aurora/cloud/virtual_machines/{{ vm.id }}/delete/">Delete</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+{% else %}
+    <p><b>No VMs are available.</b></p>
+{% endif %}
+{% endblock %}

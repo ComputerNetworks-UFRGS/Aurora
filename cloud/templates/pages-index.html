@@ -1,0 +1,58 @@
+{% extends "base-content.html" %}
+{% block content-body %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Physical Resources List</h3>
+      </div>
+      <div class="panel-body" id="widget1">Loading...
+        <script type="text/javascript">
+          gadgets_list.push(new Gadget("resource_list", "widget1"))
+        </script>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Virtual Resources List</h3>
+      </div>
+      <div class="panel-body" id="widget2">Loading...
+        <script type="text/javascript">
+          gadgets_list.push(new Gadget("virtual_resource_list", "widget2"))
+        </script>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-12">&nbsp;</div>
+</div>
+<div class="row">
+  <div class="col-md-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Aggregate Memory Usage</h3>
+      </div>
+      <div class="panel-body" id="widget3">Loading...
+        <script type="text/javascript">
+          gadgets_list.push(new Gadget("aggregate_memory_usage", "widget3"))
+        </script>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Aggregate CPU Usage</h3>
+      </div>
+      <div class="panel-body" id="widget4">Loading...
+        <script type="text/javascript">
+          gadgets_list.push(new Gadget("aggregate_cpu_usage", "widget4"))
+        </script>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

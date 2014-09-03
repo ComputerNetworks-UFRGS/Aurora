@@ -8,10 +8,10 @@ urlpatterns = patterns('',
     # Social auth urls
     url('', include('social.apps.django_app.urls', namespace='social')),
     # Aurora urls
-    url(r'^$', 'manager.views.pages.index', name='home'),
-    url(r'^not_implemented/$', 'manager.views.pages.not_implemented',
+    url(r'^$', 'cloud.views.pages.index', name='home'),
+    url(r'^not_implemented/$', 'cloud.views.pages.not_implemented',
         name='not_implemented'),
-    url(r'^manager/', include('manager.urls')),
+    url(r'^cloud/', include('cloud.urls')),
 
     # Django Admin
     url(r'^admin/', include(admin.site.urls)),
@@ -21,7 +21,7 @@ urlpatterns = patterns('',
         {'template_name': 'pages-login.html'}),
     url(r'^accounts/logout/$', 'django.contrib.auth.views.logout',
         {'template_name': 'pages-logout.html'}),
-    url(r'^accounts/login-error/$', 'manager.views.pages.login_error',
+    url(r'^accounts/login-error/$', 'cloud.views.pages.login_error',
         name='login_error'),
 )
 

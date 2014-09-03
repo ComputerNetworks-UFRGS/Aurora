@@ -50,3 +50,10 @@ then
 fi 
 cp clientkey.pem /etc/pki/libvirt/private/clientkey.pem
 
+# Installing CA
+if [ ! -d /etc/pki/CA ];
+then
+  mkdir /etc/pki/CA
+fi
+cp cacert.pem /etc/pki/CA/cacert.pem
+
