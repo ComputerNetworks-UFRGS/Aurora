@@ -1,9 +1,8 @@
-# This is only a test file
 import logging
-from cloud.programs.optimization_program import OptimizationProgram
 import time
-from cloud.models.host import Host
 from random import randint
+from cloud.programs.optimization_program import OptimizationProgram
+from cloud.models.host import Host
 from cloud.models.base_model import BaseModel
 from cloud.models.virtual_machine import VirtualMachine
 from cloud.models.virtual_router import VirtualRouter
@@ -68,4 +67,3 @@ class OptimizeBalance(OptimizationProgram):
                 new_candidate = candidate
 
         return new_candidate
-

@@ -5,7 +5,7 @@ html {
 }
 body {
   /* Margin bottom by footer height */
-  margin-bottom: 60px;
+  margin-bottom: 50px;
 }
 .aurora-footer {
   position: absolute;
@@ -22,7 +22,7 @@ body > .first-container {
   margin: 15px 0;
 }
 .aurora-footer > .container {
-  padding: 15px;
+  padding-top: 15px;
   color: #fcfcfc;
 }
 /* End sticky footer */
@@ -47,20 +47,16 @@ body {
 .navbar-brand {
     font-weight: bold;
 }
-/*
-.main-action {
-    margin-top: 10px;
-}
-.table-bordered thead tr {
-    background-color: #ddd;
-    background-image: linear-gradient(to bottom, #eee, #ddd);
-    background-repeat: repeat-x;
-}*/
 table td.td-label {
     font-weight: bold;
     width: 164px;
 }
-
+.a-danger {
+    color: #c12e2a;
+}
+.a-danger:hover, .a-danger:active {
+    color: #b92c28;
+}
 /* Login */
 .logo {
     text-align: center;

@@ -5,6 +5,7 @@
 {% if program %}
 <div class="row">
   <div class="col-md-12">
+    <h4>Optimization Program Configuration</h4>
     <table class="table table-striped table-hover table-bordered">
       <tbody>
         <tr>
@@ -21,7 +22,15 @@
         </tr>
         <tr>
           <td><b>State</b></td>
-          <td>{{ program.get_state_display }}</td>
+          <td>
+            {% if program.get_state_display == "Enabled" %}
+              <span class="label label-success">
+            {% else %}
+              <span class="label label-default">
+            {% endif %}
+                {{ program.get_state_display }}
+              </span>
+            </td>
         </tr>
         <tr>
           <td><b>Description</b></td>

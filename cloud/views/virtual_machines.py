@@ -8,7 +8,7 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import render_to_response, redirect
 from django.template import Context, RequestContext
 from django.template.loader import get_template
-from cloud.helpers import session_flash
+from cloud.helpers import session_flash, paginate
 from cloud.models.virtual_machine import VirtualMachine
 from cloud.models.host import Host
 from cloud.models.image import Image
@@ -56,20 +56,11 @@ def index(request):
     else:
         vms = []
 
-    paginator = Paginator(vms, 10)  # Show 10 objects per page
-    p = request.GET.get('p')
-
-    try:
-        vm_list = paginator.page(p)
-    except (PageNotAnInteger, TypeError):
-        # If page is not an integer, deliver first page.
-        vm_list = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        vm_list = paginator.page(paginator.num_pages)
+    vm_list = paginate.paginate(vms, request)
 
     t = get_template('virtual-machines-index.html')
     view_vars.update({
+        'active_item': None,
         'title': 'Virtual Machines List',
         'actions': [{
             'name': 'New Virtual Machine',
@@ -372,6 +363,7 @@ def new(request):
         form = VirtualMachineForm() # An unbound form
 
     view_vars.update({
+        'active_item': None,
         'title': "New Virtual Machine",
         'actions': [{ 
             'name': 'Back to List', 

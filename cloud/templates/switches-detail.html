@@ -4,30 +4,31 @@
 {% if switch %}
 <div class="row">
   <div class="col-md-12">
+    <h4>Switch Configuration</h4>
     <table class="table table-striped table-hover table-bordered">
       <tbody>
         <tr>
-          <td><b>Name</b></td>
+          <td class="td-label">Name</td>
           <td>{{ switch.name }}</td>
         </tr>
         <tr>
-          <td><b>Description</b></td>
+          <td class="td-label">Description</td>
           <td>{{ switch.description }}</td>
         </tr>
         <tr>
-          <td><b>Type of Switch</b></td>
+          <td class="td-label">Type of Switch</td>
           <td>{{ switch.get_sw_type_display }}</td>
         </tr>
         <tr>
-          <td><b>Hostname</b></td>
+          <td class="td-label">Hostname</td>
           <td>{{ switch.hostname }}</td>
         </tr>
         <tr>
-          <td><b>Total Ports</b></td>
+          <td class="td-label">Total Ports</td>
           <td>{{ switch.total_ports }}</td>
         </tr>
         <tr>
-          <td><b>State</b></td>
+          <td class="td-label">State</td>
           <td>{{ switch.current_state }}</td>
         </tr>
       </tbody>
@@ -39,7 +40,10 @@
     <h4>Port Information</h4>
   </div>
 	  <div class="col-md-6">
-		<a class="btn btn-primary pull-right" href="/Aurora/cloud/switches/{{ switch.id }}/new_port/">Add Port</a>
+		<a class="btn btn-primary btn-xs pull-right" href="/Aurora/cloud/switches/{{ switch.id }}/new_port/">
+            <span class="glyphicon glyphicon-plus"></span>
+            Add Port
+        </a>
 	  </div>
 	</div>
 	<div class="row">

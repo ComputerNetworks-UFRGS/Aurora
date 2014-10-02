@@ -502,7 +502,6 @@ class VirtualMachine(VirtualDevice):
                 self.undefine()
                 logger.debug('Virtual machine undefined: ' + self.name)
             if self.disk_path is not None and self.disk_path != "":
-                #OLD WAY: os.remove(self.disk_path)
                 out = commands.getstatusoutput(
                     'ssh root@' + self.host.hostname + ' ' +
                     '"rm -f ' + self.disk_path + '"'
@@ -517,7 +516,7 @@ class VirtualMachine(VirtualDevice):
                 )
         except Exception as e:
             raise self.VirtualMachineException(
-                'Could not undeploy VM completely: ' + e.get_error_message()
+                'Could not undeploy VM completely: ' + str(e)
             )
 
         # Clear cached state

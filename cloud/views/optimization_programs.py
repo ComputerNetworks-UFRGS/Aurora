@@ -10,23 +10,34 @@ from django.template import Context, loader
 from django.template.context import RequestContext
 from cloud.models.program import PROGRAM_STATES
 from cloud.models.optimization_program import OptimizationProgram, OPTMIZATION_SCOPES
-from cloud.helpers import session_flash
+from cloud.helpers import session_flash, paginate
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Programs"
+view_vars = {
+    'active_menu': 'Programs',
+    'active_section': 'Optimization Programs',
+}
 
 @login_required
 def index(request):
+    global view_vars
     t = loader.get_template('optimization-programs-index.html')
-    program_list = OptimizationProgram.objects.all()
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Optimization Programs List",
-        'actions': [{ 'name': "New Optimization Program", 'url': "/Aurora/cloud/optimization_programs/new/" }]
-    }
+    programs = OptimizationProgram.objects.all()
+    program_list = paginate.paginate(programs, request)
+
+    view_vars.update({
+        'active_item': None,
+        'title': 'Optimization Programs List',
+        'actions': [{ 
+            'name': 'New Optimization Program',
+            'url': '/Aurora/cloud/optimization_programs/new/', 
+            'image': 'plus'
+        }]
+    })
     c = Context({
         'program_list': program_list,
+        'paginate_list': program_list,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request)
@@ -35,17 +46,21 @@ def index(request):
 
 @login_required
 def detail(request, optimization_program_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Optimization Program Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/optimization_programs/" },
-        ]
-    }
+    global view_vars
     try:
         optimization_program = OptimizationProgram.objects.get(pk=optimization_program_id)
     except OptimizationProgram.DoesNotExist:
         raise Http404
+
+    view_vars.update({
+        'active_item': optimization_program,
+        'title': "Optimization Program Details",
+        'actions': [{ 
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/optimization_programs/',
+            'image': 'chevron-left'
+        }]
+    })
     return render_to_response('optimization-programs-detail.html', {'program': optimization_program, 'view_vars': view_vars, 'request': request })
 
 #Form for new Optimization Program creation
@@ -78,6 +93,7 @@ class OptimizationProgramForm(forms.Form):
 
 @login_required
 def new(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = OptimizationProgramForm(request.POST) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -99,13 +115,15 @@ def new(request):
     else:
         form = OptimizationProgramForm() # An unbound form
 
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Optimization Program",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/optimization_programs/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Optimization Program',
+        'actions': [{ 
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/optimization_programs/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,

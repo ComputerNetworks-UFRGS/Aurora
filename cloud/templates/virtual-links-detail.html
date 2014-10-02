@@ -1,83 +1,77 @@
-	{% extends "base-content.html" %}
-	{% block content-body %}
-	{% if link %}
-	<div class="row">
-	  <div class="col-md-12">
-	    <table class="table table-striped table-hover table-bordered">
-	      <tbody>
-		<tr>
-		    <td><b>Start</b></td>
-		    <td>
-			{{ link.if_start.attached_to.name }} - 
-				{{ link.if_start.alias }} ({{ link.if_start.mac_address }})
-		    </td>
-		</tr>
-		<tr>
-		    <td><b>End</b></td>
-		    <td>
-			{{ link.if_end.attached_to.name }} - 
-				{{ link.if_end.alias }} ({{ link.if_end.mac_address }})
-		    </td>
-		</tr>
-		<tr>
-		    <td><b>State</b></td>
-		    <td>{{ link.current_state }}</td>
-		</tr>
-	      </tbody>
-	    </table>
-	  </div>
-	</div>
-	<div class="row">
-	  <div class="col-md-12">    
-	    <h4>QoS Information</h4>
-
-	    {% if link.virtuallinkqos %}
-	    <table class="table table-striped table-hover table-bordered">
-	      <tbody>
-		<tr>
-		    <td><b>Bandwidth Up (Committed %)</b></td>
-		    <td>
+{% extends "base-content.html" %}
+{% block content-body %}
+{% if link %}
+<div class="row">
+  <div class="col-md-6">    
+    <h4>Virtual Link Configuration</h4>
+    <table class="table table-striped table-hover table-bordered">
+      <tbody>
+        <tr>
+          <td class="td-label">Start</td>
+          <td>
+            {{ link.if_start.attached_to.name }} - 
+            {{ link.if_start.alias }} ({{ link.if_start.mac_address }})
+          </td>
+        </tr>
+        <tr>
+          <td class="td-label">End</td>
+          <td>
+            {{ link.if_end.attached_to.name }} - 
+            {{ link.if_end.alias }} ({{ link.if_end.mac_address }})
+          </td>
+        </tr>
+        <tr>
+          <td class="td-label">State</td>
+          <td>{{ link.current_state }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col-md-6">
+    <h4>QoS Information</h4>
+    {% if link.virtuallinkqos %}
+    <table class="table table-striped table-hover table-bordered">
+      <tbody>
+        <tr>
+          <td class="td-label">Bandwidth Up (Committed %)</td>
+          <td>
 			{{ link.virtuallinkqos.bandwidth_up_maximum }} MB ({{ link.virtuallinkqos.bandwidth_up_committed }}%)
-		    </td>
-		</tr>
-		<tr>
-		    <td><b>Bandwidth Down (Committed %)</b></td>
-		    <td>
+          </td>
+        </tr>
+        <tr>
+          <td class="td-label">Bandwidth Down (Committed %)</td>
+          <td>
 			{{ link.virtuallinkqos.bandwidth_down_maximum }} MB ({{ link.virtuallinkqos.bandwidth_down_committed }}%)
-		    </td>
-		</tr>
-		<tr>
-		    <td><b>Latency</b></td>
-		    <td>{{ link.virtuallinkqos.latency }}ms</td>
-		</tr>
-	      </tbody>
-	    </table>
-		{% else %}
-		    <p><b>No QoS information available.</b></p>
-		{% endif %}
-	  </div>
-	</div>
-	<div class="row">
-	  <div class="col-md-12">
+          </td>
+        </tr>
+        <tr>
+          <td class="td-label">Latency</td>
+          <td>{{ link.virtuallinkqos.latency }}ms</td>
+        </tr>
+	  </tbody>
+	</table>
+    {% else %}
+    <p><b>No QoS information available.</b></p>
+    {% endif %}
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-12">
     <h4>Network Statistics</h4>
     {% if net_stats %}
     <table class="table table-striped table-hover table-bordered">
       <thead>
-	    <tr>
-	      <th>Stats here</th>
-	    </tr>
+        <tr><th>Stats here</th></tr>
       </thead>
       <tbody>
         {% for stat in net_stats %}
-	    <tr>
-	      <td>{{ interface.id }}</td>
-	    </tr>
-	    {% endfor %}
+        <tr><td>{{ interface.id }}</td></tr>
+        {% endfor %}
       </tbody>
-	</table>
-	{% else %}
-	    <p><b>No statistics available.</b></p>
-	{% endif %}
+    </table>
+    {% else %}
+    <p><b>No statistics available.</b></p>
+    {% endif %}
   </div>
 </div>
 {% endif %}

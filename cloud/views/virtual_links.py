@@ -8,7 +8,7 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import render_to_response, redirect
 from django.template import Context, RequestContext
 from django.template.loader import get_template
-from cloud.helpers import session_flash #@UnresolvedImport 
+from cloud.helpers import session_flash, paginate
 from cloud.models.slice import Slice
 from cloud.models.virtual_link import VirtualLink
 from cloud.models.virtual_link_qos import VirtualLinkQos
@@ -18,7 +18,11 @@ from cloud.widgets.number_input import NumberInput
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Network"
+view_vars = {
+    'active_item': None,
+    'active_menu': 'Network',
+    'active_section': 'Virtual Links',
+}
 
 #Form index filters
 class VirtualLinksIndexFiltersForm(forms.Form):
@@ -44,30 +48,24 @@ def index(request):
     else:
         links = []
 
-    paginator = Paginator(links, 10) # Show 10 objects per page
+    link_list = paginate.paginate(links, request)
 
-    p = request.GET.get('p')
-
-    try:
-        link_list = paginator.page(p)
-    except (PageNotAnInteger, TypeError):
-        link_list = paginator.page(1) # If page is not an integer, deliver first page.
-    except EmptyPage:
-        link_list = paginator.page(paginator.num_pages) # If page is out of range (e.g. 9999), deliver last page of results.
     t = get_template('virtual-links-index.html')
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Virtual Links List",
-        'actions': [
-            { 'name': "New Virtual Link", 'url': "/Aurora/cloud/virtual_links/new/" },
-            { 'name': "Synchronize", 'url': "/Aurora/cloud/virtual_links/sync/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'Virtual Links List',
+        'actions': [{
+            'name': 'New Virtual Link',
+            'url': '/Aurora/cloud/virtual_links/new/',
+            'image': 'plus'
+        }]
+    })
     
     c = Context({
-        'form': form,
+        'filter_form': form,
         'view_vars': view_vars,
         'link_list': link_list,
+        'paginate_list': link_list,
         'request': request,
         'flash': session_flash.get_flash(request)
     })
@@ -96,18 +94,20 @@ def sync(request):
 
 @login_required
 def detail(request, virtual_link_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Virtual Link Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/virtual_links/" },
-        ]
-    }
     try:
         link = VirtualLink.objects.get(pk=virtual_link_id)
     except VirtualLink.DoesNotExist:
         raise Http404
 
+    view_vars.update({
+        'active_item': link,
+        'title': 'Virtual Link Details',
+        'actions': [{
+            'name': 'Back to List',
+            'url': '/Aurora/cloud/virtual_links/',
+            'image': 'chevron-left'
+        }]
+    })
     return render_to_response('virtual-links-detail.html', {'link': link, 'view_vars': view_vars, 'request': request, 'flash': session_flash.get_flash(request) })
 
 class InterfaceModelChoiceField(forms.ModelChoiceField):
@@ -204,13 +204,15 @@ def new(request):
     else:
         form = LinkForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Virtual Link",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/virtual_links/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Virtual Link',
+        'actions': [{
+            'name': 'Back to List',
+            'url': '/Aurora/cloud/virtual_links/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,
@@ -238,4 +240,4 @@ def delete(request, virtual_link_id):
     session_flash.set_flash(request, "Virtual Link <id: %s> was successfully deleted!" % virtual_link_id)
     logger.debug("Virtual Link <id: %s> was successfully deleted!" % virtual_link_id)
     
-    return redirect('cloud-virtual-links-index')
+    return redirect(request.META['HTTP_REFERER'])

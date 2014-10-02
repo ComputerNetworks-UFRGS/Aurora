@@ -43,7 +43,7 @@ INSTALLED_APPS = (
     # Widget Tweaks
     'widget_tweaks',
     # Debug toolbar
-    'debug_toolbar',
+    #'debug_toolbar',
     # Aurora main application
     'cloud',
 )
@@ -57,7 +57,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Debug toolbar
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    #'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 INTERNAL_IPS = ('127.0.0.1')
@@ -182,6 +182,17 @@ CACHES = {
     }
 }
 
+# SDN Controller IP address
+# Network reachable IP address (usually not 127.0.0.1) so other switches can connect remotelly to your controller
+SDN_CONTROLLER = {
+    'type': 'floodlight',
+    'ip': '10.0.0.1',
+    'transport': 'tcp',
+}
+
 # Override default settings locally
-import local_settings
+try:
+    from local_settings import *
+except ImportError as e:
+    pass
 

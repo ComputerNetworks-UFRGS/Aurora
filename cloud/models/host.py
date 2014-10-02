@@ -1,11 +1,13 @@
 import commands
 import libvirt
 import logging
+import socket
 from django.db import models
 from django.core.cache import cache
+from django.conf import settings
+from libvirt import libvirtError
 from xml.etree.ElementTree import fromstring
 from cloud.models.virtual_machine import VirtualMachine, LIBVIRT_VM_STATES
-from libvirt import libvirtError
 from cloud.models.virtual_interface import VirtualInterface
 from cloud.models.device import Device
 
@@ -64,6 +66,7 @@ class Host(Device):
     def libvirt_connect(self, force_tcp=False):
         # Allows only one connection for each different host
         if force_tcp is False and self.__class__.libvirt_connections.has_key(self.id) and isinstance(self.__class__.libvirt_connections[self.id], libvirt.virConnect):
+            #logger.debug("Connections found: " + str(self.__class__.libvirt_connections))
             return self.__class__.libvirt_connections[self.id]
 
         driver = self.driver
@@ -544,6 +547,11 @@ class Host(Device):
         except:
             return ""
 
+    def ssh_status(self):
+        if not hasattr(self, '_ssh_status') or self.ssh_status is None:
+            self._ssh_status = self.check_ssh_status()
+        return self._ssh_status
+
     def check_ssh_status(self):
         out = commands.getstatusoutput('ssh root@' + self.hostname + ' "ifconfig"')
         if out[0] != 0:
@@ -553,6 +561,29 @@ class Host(Device):
             message = "OK"
 
         return message
+
+    def openvswitch_status(self):
+        if not hasattr(self, '_openvswitch_status'):
+            self._openvswitch_status = self.check_openvswitch_status()
+        return self._openvswitch_status
+
+    def check_openvswitch_status(self):
+        ip = socket.gethostbyname(self.hostname)
+        bridge = "hostbr" + str(self.id)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + ip + ':8888 --timeout=3 br-exists "' + bridge + '"')
+        if out[0] != 0:
+            logger.warning('Open vSwitch bridge not found (' + bridge + ') at tcp:' + ip + ':8888, will try to create one. ' + out[1])
+            # Will try to create a bridge
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + ip + ':8888 --timeout=3 add-br "' + bridge + '"')
+            if out[0] != 0:
+                return 'Could not find bridge (' + bridge + ') at tcp:' + ip + ':8888: ' + out[1]
+            # Setup controller
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + ip + ':8888 --timeout=3 set-controller ' + bridge + ' ' + settings.SDN_CONTROLLER['transport'] + ':' + settings.SDN_CONTROLLER['ip'])
+            if out[0] != 0:
+                return 'Could not set controller ' + settings.SDN_CONTROLLER['ip'] + ':' + settings.SDN_CONTROLLER['transport'] + ' (' + bridge + ') at tcp:' + ip + ':8888: ' + out[1]
+
+        logger.warning('Bridge found (' + bridge + ') at tcp:' + ip + ':8888')
+        return 'OK'
 
     def __unicode__(self):
         return self.get_driver_display() + u" at " + self.hostname

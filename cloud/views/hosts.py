@@ -1,17 +1,17 @@
-import logging
 import json
-from django.http import HttpResponse
-from django.template import Context, RequestContext, loader
-from cloud.models.host import Host, DRIVERS, TRANSPORTS
-from libvirt import libvirtError
-from django.http import Http404
+import logging
 from django import forms
-from django.shortcuts import render_to_response, redirect
 from django.contrib.auth.decorators import login_required
-from cloud.helpers import session_flash
-from cloud.widgets.number_input import NumberInput
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import Http404, HttpResponse
+from django.shortcuts import render_to_response, redirect
+from django.template import Context, RequestContext, loader
+from libvirt import libvirtError
+from cloud.helpers import session_flash, paginate
+from cloud.models.host import Host, DRIVERS, TRANSPORTS
 from cloud.models.interface import Interface, INTERFACE_TYPES, INTERFACE_DUPLEX_TYPE
 from cloud.models.virtual_machine import VirtualMachine
+from cloud.widgets.number_input import NumberInput
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
@@ -24,8 +24,11 @@ view_vars = {
 def index(request):
     global view_vars
     t = loader.get_template('hosts-index.html')
-    host_list = Host.objects.all()
+    hosts = Host.objects.all()
+    host_list = paginate.paginate(hosts, request)
+
     view_vars.update({
+        'active_item': None,
         'title': "Hosts List",
         'actions': [{ 
             'name': "New Host", 
@@ -35,6 +38,7 @@ def index(request):
     })
     c = Context({
         'host_list': host_list,
+        'paginate_list': host_list,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request)
@@ -138,12 +142,19 @@ def new(request):
             # Save Host to get an ID
             h.save()
             
+            # Checks to see if Open vSwitch is properly configured (if it is 
+            # not, it will try to configure)
+            ovs_status = h.check_openvswitch_status()
+            if ovs_status != "OK":
+                session_flash.set_flash(request, "Could not configure Open vSwitch for this host: " + ovs_status, 'danger')
+
             session_flash.set_flash(request, "New Host successfully created")
             return redirect('cloud-hosts-index') # Redirect after POST
     else:
         form = HostForm() # An unbound form
     
     view_vars.update({
+        'active_item': None,
         'title': 'New Host',
         'actions': [{ 
             'name': 'Back to List', 

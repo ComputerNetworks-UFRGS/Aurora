@@ -1,4 +1,3 @@
-# This is only a test file
 import logging
 import random
 from cloud.metrics.metric import Metric

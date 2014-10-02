@@ -1,6 +1,10 @@
-import logging
 import commands
-import json, httplib
+import httplib
+import json
+import logging
+import os
+import socket
+from django.conf import settings
 from django.db import models
 from cloud.models.virtual_interface import VirtualInterface
 from cloud.models.base_model import BaseModel
@@ -35,50 +39,89 @@ class VirtualLink(BaseModel):
     state = models.CharField(max_length=10, choices=LINK_STATES, default='created', db_index=True)
 
     def current_state(self):
-        # TODO: Machete master
-        return self.get_state_display()
-
         # Check first internal state
         if self.state == 'created' or self.state == 'waiting':
             return self.get_state_display()
 
-        # Check state with Openflow Controller OLD IMPLEMENTATION WITH NOX
-        #try:
-        #    headers = {"Content-type": "application/json"}
-        #    # openflow controller is currently running on localhost
-        #    conn = httplib.HTTPConnection("localhost", 8000)
-        #    conn.request("GET", "/cloud/link/state/" + str(self.id), "", headers)
-        #    response = conn.getresponse()
-        #    # response by default is a json formatted string containing all information about a link
-        #    json_data = response.read()
-        #    conn.close()
-        #    logger.debug("Response: %s %s - Data: %s" % (response.status, response.reason, json_data))
-        #    link_data = json.loads(json_data)
-        #    if response.status == 200:
-        #        if link_data.has_key("state"):
-        #            return link_data["state"]
-        #        else:
-        #            return "Weird response"
-        #    elif response.status == 404:
-        #        return "Virtual Link not found"
-        #    else:
-        #        return "Weird status"
+        # Router to Router link
+        if hasattr(self.if_start.attached_to, "virtualrouter") and hasattr(self.if_end.attached_to, "virtualrouter"):
+            # TODO: return current_state_ovspatch()
+            pass
+        # VM to VM link
+        elif hasattr(self.if_start.attached_to, "virtualmachine") and hasattr(self.if_end.attached_to, "virtualmachine"):
+            return self.current_state_of()
+        # VM to Router (or vice-versa) link
+        else:
+            # TODO: return current_state_ovs()
+            pass
 
-        #except Exception as e:
-        #    logger.warning("Problems communicating with the OpenFlow Controller: %s" % str(e))
-        #    return "Problems communicating with the OpenFlow Controller: %s" % str(e)
+        return self.get_state_display()
 
     def establish(self):
+        result = False
 
         # Router to Router link
         if hasattr(self.if_start.attached_to, "virtualrouter") and hasattr(self.if_end.attached_to, "virtualrouter"):
-            return self.establish_iplink()
+            # TODO: Old Way with iplink
+            #return self.establish_iplink()
+            result = self.establish_ovspatch()
         # VM to VM link
         elif hasattr(self.if_start.attached_to, "virtualmachine") and hasattr(self.if_end.attached_to, "virtualmachine"):
-            return self.establish_of()
+            result = self.establish_of()
         # VM to Router (or vice-versa) link
         else:
-            return self.establish_ovs()
+            result = self.establish_ovs()
+
+        if result:
+            self.state = 'establish'
+            self.save()
+
+        return result
+
+    def unestablish(self):
+        result = False
+
+        # Router to Router link
+        if hasattr(self.if_start.attached_to, "virtualrouter") and hasattr(self.if_end.attached_to, "virtualrouter"):
+            # TODO: Old Way with iplink
+            #return self.unestablish_iplink()
+            result = self.unestablish_ovspatch()
+
+        # VM to VM link
+        elif hasattr(self.if_start.attached_to, "virtualmachine") and hasattr(self.if_end.attached_to, "virtualmachine"):
+            result = self.unestablish_of()
+        # VM to Router (or vice-versa) link
+        else:
+            result = self.unestablish_ovs()
+
+        if result:
+            self.state = 'created'
+            self.save()
+
+        return True
+
+    # Check status of virtual link on OpenFlow Controller
+    def current_state_of(self):
+        # Forward flow
+        command = 'curl -s http://%s:8080/wm/staticflowentrypusher/list/all/json' % (settings.SDN_CONTROLLER['ip'])
+        result = os.popen(command).read()
+        parsed_result = json.loads(result)
+        logger.debug(command)
+        logger.debug(result)
+
+        for sw in parsed_result:
+            if parsed_result[sw].has_key('link%s.f' % self.id) and parsed_result[sw].has_key('link%s.r' % self.id):
+                # Might have failed before, it is working now
+                if self.state != 'establish':
+                    self.state = 'establish'
+                    self.save()
+                return self.get_state_display()
+
+        # Link was not found in network
+        self.state = 'failed'
+        self.save()
+        return self.get_state_display()
+        
 
     # Create the virtual link on OpenFlow Controller
     def establish_of(self):
@@ -87,54 +130,118 @@ class VirtualLink(BaseModel):
         if current_state == 'Established' or current_state == 'Waiting':
             return True
 
-        bridge = "virbr2"
         eth1 = self.if_start.target
         eth2 = self.if_end.target
-
         if eth1 == "" or eth2 == "":
-            logger.warning("Invalid pair of interfaces (" + eth1 + "-" + eth2 + ")")
             raise self.VirtualLinkException("Invalid pair of interfaces (" + eth1 + "-" + eth2 + ")")
 
-        # Add the interface to the default bridge
-        # TODO: Use the remote host openvswitch connection
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --may-exist add-port "' + bridge + '" ' + eth1)
+        mac1 = self.if_start.mac_address
+        mac2 = self.if_end.mac_address
+        vm1 = self.if_start.attached_to.virtualmachine
+        h1 = vm1.host
+        vm2 = self.if_end.attached_to.virtualmachine
+        h2 = vm2.host
+        if h1 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(vm1) + ")")
+        if h2 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(vm2) + ")")
+
+        br1 = "hostbr" + str(h1.id)
+        br2 = "hostbr" + str(h2.id)
+
+        # Add the interfaces to the default bridge
+        h1_ip = socket.gethostbyname(h1.hostname)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h1_ip + ':8888 --timeout=3 -- --may-exist add-port "' + br1 + '" ' + eth1)
         if out[0] != 0:
-            logger.warning("Could not add port (" + eth1 + ") to bridge (" + bridge + "): " + out[1])
-            raise self.VirtualLinkException("Could not add port (" + eth1 + ") to bridge (" + bridge + "): " + out[1])
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --may-exist add-port "' + bridge + '" ' + eth2)
+            raise self.VirtualLinkException('Could not add port (' + eth1 + ') to bridge (' + br1 + '): ' + out[1])
+
+        h2_ip = socket.gethostbyname(h2.hostname)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h2_ip + ':8888 --timeout=3 -- --may-exist add-port "' + br2 + '" ' + eth2)
         if out[0] != 0:
-            logger.warning("Could not add port (" + eth2 + ") to bridge (" + bridge + "): " + out[1])
-            raise self.VirtualLinkException("Could not add port (" + eth2 + ") to bridge (" + bridge + "): " + out[1])
+            raise self.VirtualLinkException('Could not add port (' + eth2 + ') to bridge (' + br2 + '): ' + out[1])
 
         # Update local state to waiting
         self.state = 'waiting'
         self.save()
         # TODO: temporary implementation with Floodlight
-        if_start = self.if_start.target
-        if_end = self.if_end.target
-        bridge = "virbr2"
-        out = commands.getstatusoutput('/home/aurora/Aurora/cloud/helpers/circuitpusher.py --controller 127.0.0.1:8080 --add --name link' + str(self.id) + ' --type phy --src ' + if_start + ':' + bridge + ' --dst ' + if_end + ':' + bridge)
-        if out[0] != 0:
-            logger.warning("Could not establish link:" + out[1])
+        command = 'curl -s http://%s:8080/wm/core/controller/switches/json' % settings.SDN_CONTROLLER['ip']
+        result = os.popen(command).read()
+        parsed_result = json.loads(result)
+        logger.debug(command)
+        logger.debug(result)
+
+        # Search for source and destination switches and ports
+        for sw in parsed_result:
+            src_switch = src_port = dst_switch = dst_port = None
+            for pt in sw['ports']:
+                if pt['name'] == eth1:
+                    src_port = pt['portNumber']
+                if pt['name'] == br1:
+                    src_switch = sw['dpid']
+                if pt['name'] == eth2:
+                    dst_port = pt['portNumber']
+                if pt['name'] == br2:
+                    dst_switch = sw['dpid']
+
+        if src_port is None or src_switch is None or dst_port is None or dst_switch is None:
             # Update local state to waiting
             self.state = 'failed'
             self.save()
-            raise self.VirtualLinkException("Could not establish link: " + out[1])
+            raise self.VirtualLinkException("Could not establish find switch/port in the network")
 
-        self.state = 'establish'
-        self.save()
+        # Everything found, will create circuit
+        logger.debug("Creating circuit: from %s port %s -> %s port %s" % (src_switch, src_port, dst_switch, dst_port))
+        command = "curl -s http://%s:8080/wm/topology/route/%s/%s/%s/%s/json" % (settings.SDN_CONTROLLER['ip'], src_switch, src_port, dst_switch, dst_port)
+        result = os.popen(command).read()
+        parsed_result = json.loads(result)
+        logger.debug(command)
+        logger.debug(result)
+
+        # Route format
+        # [
+        #     {
+        #         "port": inport,
+        #         "switch": dpid1
+        #     },
+        #     {
+        #         "port": outport,
+        #         "switch": dpid1
+        #     },
+        #     ...
+        #     {
+        #         "port": inport,
+        #         "switch": dpidN
+        #     },
+        #     {
+        #         "port": outport,
+        #         "switch": dpidN
+        #     }
+        # ]
+
+        for i in range(len(parsed_result)):
+            if i % 2 == 0:
+                dpid1 = parsed_result[i]['switch']
+                port1 = parsed_result[i]['port']
+            else:
+                dpid2 = parsed_result[i]['switch']
+                port2 = parsed_result[i]['port']
+
+                # IMPORTANT NOTE: current Floodlight StaticflowEntryPusher
+                # assumes all flow entries to have unique name across all switches
+
+                # Forward flow
+                command = 'curl -s -d \'{"switch": "%s", "name":"link%s.f", "src-mac":"%s", "cookie":"0", "priority":"32768", "ingress-port":"%s","active":"true", "actions":"output=%s"}\' http://%s:8080/wm/staticflowentrypusher/json' % (dpid1, self.id, mac1, port1, port2, settings.SDN_CONTROLLER['ip'])
+                result = os.popen(command).read()
+                logger.debug(command)
+                logger.debug(result)
+
+                # Backward flow
+                command = 'curl -s -d \'{"switch": "%s", "name":"link%s.r", "src-mac":"%s", "cookie":"0", "priority":"32768", "ingress-port":"%s","active":"true", "actions":"output=%s"}\' http://%s:8080/wm/staticflowentrypusher/json' % (dpid1, self.id, mac2, port2, port1, settings.SDN_CONTROLLER['ip'])
+                result = os.popen(command).read()
+                logger.debug(command)
+                logger.debug(result)
+
         return True
-
-    def unestablish(self):
-        # Router to Router link
-        if hasattr(self.if_start.attached_to, "virtualrouter") and hasattr(self.if_end.attached_to, "virtualrouter"):
-            return self.unestablish_iplink()
-        # VM to VM link
-        elif hasattr(self.if_start.attached_to, "virtualmachine") and hasattr(self.if_end.attached_to, "virtualmachine"):
-            return self.unestablish_of()
-        # VM to Router (or vice-versa) link
-        else:
-            return self.unestablish_ovs()
 
     # Deletes a virtual link on OpenFlow Controller
     def unestablish_of(self):
@@ -143,17 +250,69 @@ class VirtualLink(BaseModel):
         if current_state == 'Created':
             return True
 
-        # TODO: temporary implementation with Floodlight
-        out = commands.getstatusoutput('/home/aurora/Aurora/cloud/helpers/circuitpusher.py --controller 127.0.0.1:8080 --delete --name link' + str(self.id))
-        if out[0] != 0:
-            logger.warning("Could not establish link:" + out[1])
-            # Update local state to waiting
-            self.state = 'failed'
-            self.save()
-            raise self.VirtualLinkException("Could not establish link: " + out[1])
+        # Forward flow
+        command = 'curl -X DELETE -d \'{"name":"link%s.f"}\' http://%s:8080/wm/staticflowentrypusher/json' % (self.id, settings.SDN_CONTROLLER['ip'])
+        result = os.popen(command).read()
+        logger.debug(command)
+        logger.debug(result)
+
+        # Backward flow
+        command = 'curl -X DELETE -d \'{"name":"link%s.r"}\' http://%s:8080/wm/staticflowentrypusher/json' % (self.id, settings.SDN_CONTROLLER['ip'])
+        result = os.popen(command).read()
+        logger.debug(command)
+        logger.debug(result)
+
+        #    logger.warning("Could not establish link:" + out[1])
+        #    # Update local state to waiting
+        #    self.state = 'failed'
+        #    self.save()
+        #    raise self.VirtualLinkException("Could not establish link: " + out[1])
 
         self.state = 'inactive'
         self.save()
+        return True
+
+    def establish_ovspatch(self):
+        bridge1 = self.if_start.attached_to.virtualrouter.dev_name
+        bridge2 = self.if_end.attached_to.virtualrouter.dev_name
+        port1 = bridge1 + '_to_' + bridge2
+        port2 = bridge2 + '_to_' + bridge1
+
+        # Add patch port in bridge 1
+        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- add-port ' + bridge1 + ' ' + port1 + ' -- set interface ' + port1 + ' type=patch options:peer=' + port2
+        out = commands.getstatusoutput(cmd)
+        if out[0] != 0:
+            logger.warning(cmd)
+            raise self.VirtualLinkException("Could not add patch (" + port1 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
+
+        # Add patch port in bridge 2
+        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- add-port ' + bridge2 + ' ' + port2 + ' -- set interface ' + port2 + ' type=patch options:peer=' + port1
+        out = commands.getstatusoutput(cmd)
+        if out[0] != 0:
+            logger.warning(cmd)
+            raise self.VirtualLinkException("Could not add patch (" + port2 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
+
+        return True
+
+    def unestablish_ovspatch(self):
+        bridge1 = self.if_start.attached_to.virtualrouter.dev_name
+        bridge2 = self.if_end.attached_to.virtualrouter.dev_name
+        port1 = bridge1 + '_to_' + bridge2
+        port2 = bridge2 + '_to_' + bridge1
+
+        # Remove port on source bridge
+        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --if-exists del-port ' + bridge1 + ' ' + port1
+        out = commands.getstatusoutput(cmd)
+        if out[0] != 0:
+            logger.warning(cmd)
+            raise self.VirtualLinkException("Could not delete patch (" + port1 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
+        # Remove port on destination bridge
+        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --if-exists del-port ' + bridge2 + ' ' + port2
+        out = commands.getstatusoutput(cmd)
+        if out[0] != 0:
+            logger.warning(cmd)
+            raise self.VirtualLinkException("Could not delete patch (" + port2 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
+
         return True
 
     def establish_ovs(self):
@@ -219,7 +378,7 @@ class VirtualLink(BaseModel):
         bridge1 = self.if_start.attached_to.virtualrouter.dev_name
         bridge2 = self.if_end.attached_to.virtualrouter.dev_name
         # TODO: Get correct hostname here
-        out = commands.getstatusoutput('ssh root@acdc.inf.ufrgs.br "ip link add name ' + eth1 + ' type veth peer name ' + eth2 + '; ifconfig ' + eth1 + ' up ; ifconfig ' + eth2 + ' up"')
+        out = commands.getstatusoutput('ssh root@localhost "ip link add name ' + eth1 + ' type veth peer name ' + eth2 + '; ifconfig ' + eth1 + ' up ; ifconfig ' + eth2 + ' up"')
         if out[0] != 0:
             logger.warning("Could not add link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
             raise self.VirtualLinkException("Could not add link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
@@ -255,13 +414,15 @@ class VirtualLink(BaseModel):
 
         # ip link will delete the pair of interfaces even if we delete only eth1
         # TODO: Get correct hostname here
-        out = commands.getstatusoutput('ssh root@acdc.inf.ufrgs.br "ip link delete ' + eth1 + '"')
+        out = commands.getstatusoutput('ssh root@localhost "ip link delete ' + eth1 + '"')
         if out[0] != 0:
             logger.warning("Could not delete link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
             raise self.VirtualLinkException("Could not delete link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
 
         return True
 
+    def __unicode__(self):
+        return "VirtualLink #%d" % self.id
 
     class VirtualLinkException(BaseModel.ModelException):
         pass

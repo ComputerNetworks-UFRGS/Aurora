@@ -27,11 +27,14 @@
     <h4>Deployment and Optimization</h4>
   </div>
   <div class="col-md-6">
-    <a class="btn btn-primary pull-right" href="/Aurora/cloud/slices/{{ slc.id }}/add_optimization_program/">Add Optimization Program</a>
+    <a class="btn btn-primary btn-xs pull-right" href="/Aurora/cloud/slices/{{ slc.id }}/add_optimization_program/">
+      <span class="glyphicon glyphicon-plus"></span>
+      Add Optimization Program
+    </a>
   </div>
 </div>
 <div class="row">
-  <div class="col-md-12">
+  <div class="col-md-6">
     {% if slc.deployed_with %}
     <table class="table table-striped table-hover table-bordered">
       <thead>
@@ -48,7 +51,8 @@
 	{% else %}
 	    <p><b>No deployment programs assigned for this slice.</b></p>
     {% endif %}
-    <br/>
+  </div>
+  <div class="col-md-6">
     {% if optimized_by_list %}
 	    <table class="table table-striped table-hover table-bordered">
           <thead>

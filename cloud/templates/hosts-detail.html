@@ -37,26 +37,12 @@
         </tr>
         <tr>
             <td class="td-label">Libvirt State</td>
-            <td>
             {% if host.current_state == "Active" %}
-              <span class="label label-success">
+            <td class="success">
             {% else %}
-              <span class="label label-warning">
+            <td class="danger">
             {% endif %}
-                {{ host.current_state }}
-              </span>
-            </td>
-        </tr>
-        <tr>
-            <td class="td-label">SSH State</td>
-            <td>
-            {% if host.check_ssh_status == "OK" %}
-              <span class="label label-success">
-            {% else %}
-              <span class="label label-warning">
-            {% endif %}
-                {{ host.check_ssh_status }}
-              </span>
+              {{ host.current_state }}
             </td>
         </tr>
       </tbody>
@@ -95,6 +81,26 @@
 	      <td class="td-label">Hypervisor Version</td>
 	      <td>{{ sys_info.hypervisor_version }}</td>
 	    </tr>
+        <tr>
+            <td class="td-label">SSH State</td>
+            {% if host.ssh_status == "OK" %}
+            <td class="success">
+            {% else %}
+            <td class="danger">
+            {% endif %}
+              {{ host.ssh_status }}
+            </td>
+        </tr>
+        <tr>
+            <td class="td-label">Open vSwitch State</td>
+            {% if host.openvswitch_status == "OK" %}
+            <td class="success">
+            {% else %}
+            <td class="danger">
+            {% endif %}
+              {{ host.openvswitch_status }}
+            </td>
+        </tr>
       </tbody>
 	</table>
 	{% else %}

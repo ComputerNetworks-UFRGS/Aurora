@@ -1,34 +1,45 @@
 import logging
-from django.http import HttpResponse
-from django.template import Context, RequestContext, loader
-from cloud.models.switch import Switch, SWITCH_TYPE
-from django.http import Http404
 from django import forms
-from django.shortcuts import render_to_response, redirect
 from django.contrib.auth.decorators import login_required
-from cloud.helpers import session_flash
-from cloud.widgets.number_input import NumberInput
-from cloud.models.port import Port, PORT_DUPLEX_TYPE
-from cloud.models.device import Device
-from django.core.validators import EMPTY_VALUES
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.validators import EMPTY_VALUES
+from django.http import HttpResponse, Http404
+from django.shortcuts import render_to_response, redirect
+from django.template import Context, RequestContext, loader
+from cloud.helpers import session_flash, paginate
+from cloud.models.device import Device
 from cloud.models.interface import Interface
+from cloud.models.port import Port, PORT_DUPLEX_TYPE
+from cloud.models.switch import Switch, SWITCH_TYPE
+from cloud.widgets.number_input import NumberInput
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Resources"
+view_vars = {
+    'active_menu': 'Resources',
+    'active_section': 'Switches',
+}
 
 @login_required
 def index(request):
+    global view_vars
     t = loader.get_template('switches-index.html')
-    switch_list = Switch.objects.all()
-    view_vars = {
-        'active_menu': active_menu,
+    switches = Switch.objects.all()
+    switch_list = paginate.paginate(switches, request)
+
+    view_vars.update({
+        'active_item': None,
         'title': "Switches List",
-        'actions': [{ 'name': "New Switch", 'url': "/Aurora/cloud/switches/new/" }]
-    }
+        'actions': [{ 
+            'name': 'New Switch', 
+            'url': '/Aurora/cloud/switches/new/',
+            'image': 'plus'
+        }]
+    })
     c = Context({
         'switch_list': switch_list,
+        'paginate_list': switch_list,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request)
@@ -37,17 +48,21 @@ def index(request):
 
 @login_required
 def detail(request, switch_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Switch Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/switches/" },
-        ]
-    }
+    global view_vars
     try:
         switch = Switch.objects.get(pk=switch_id)
     except Switch.DoesNotExist:
         raise Http404
+
+    view_vars.update({
+        'active_item': switch,
+        'title': "Switch Details",
+        'actions': [{ 
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/switches/',
+            'image': 'chevron-left'
+        }]
+    })
     
     port_list = switch.port_set.all()
     # TODO: Collect network usage statistics from network ports
@@ -70,6 +85,7 @@ class SwitchForm(forms.Form):
     
 @login_required
 def new(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = SwitchForm(request.POST) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -87,13 +103,14 @@ def new(request):
     else:
         form = SwitchForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Switch",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/switches/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Switch',
+        'actions': [{
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/switches/'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,
@@ -125,6 +142,7 @@ class PortForm(forms.Form):
     
 @login_required
 def new_port(request, switch_id):
+    global view_vars
     try:
         switch = Switch.objects.get(pk=switch_id)
     except Switch.DoesNotExist:
@@ -148,14 +166,16 @@ def new_port(request, switch_id):
     else:
         form = PortForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Port for " + switch.name,
-        'actions': [
-            { 'name': "Back to Details", 'url': "/Aurora/cloud/switches/" + switch_id + "/" },
-        ]
-    }
-    # insert slice_id in the action url
+    view_vars.update({
+        'active_item': switch,
+        'title': 'New Port for ' + switch.name,
+        'actions': [{ 
+            'name': 'Back to Details', 
+            'url': '/Aurora/cloud/switches/' + switch_id + '/',
+            'image': 'chevron-left'
+        }]
+    })
+    # insert id in the action url
     form.action = form.action % switch_id
     c = RequestContext(request, {
         'switch': switch,
@@ -213,6 +233,7 @@ class ConnectDeviceForm(forms.Form):
     interface = InterfaceModelChoiceField(queryset=Interface.objects.none(), label="Interface/Port")
     
 def connect_device(request, switch_id, port_id):
+    global view_vars
     try:
         sw = Switch.objects.get(pk=switch_id)
         port = Port.objects.get(pk=port_id, switch=sw)
@@ -235,13 +256,15 @@ def connect_device(request, switch_id, port_id):
     else:
         form = ConnectDeviceForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Connect Device on port " + port.alias + " of " + sw.name,
-        'actions': [
-            { 'name': "Back to Details", 'url': "/Aurora/cloud/switches/" + switch_id + "/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': sw,
+        'title': 'Connect Device on port ' + port.alias + ' of ' + sw.name,
+        'actions': [{
+            'name': 'Back to Details', 
+            'url': '/Aurora/cloud/switches/' + switch_id + '/',
+            'image': 'chevron-left'
+        }]
+    })
     # insert slice_id in the action url
     form.action = form.action % (switch_id, port_id)
     c = RequestContext(request, {

@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 view_vars = {
     'active_menu': 'Slice Management',
     'active_section': 'Slices',
+    'active_item': None,
 }
 
 @login_required
@@ -35,10 +36,11 @@ def index(request):
     t = get_template('slices-index.html')
     slice_list = Slice.objects.all()
     view_vars.update({
+        'active_item': None,
         'title': "Slices List",
         'actions': [{ 
             'name': "New Slice", 
-            'url': "/Aurora/cloud/slice/new/",
+            'url': "/Aurora/cloud/slices/new/",
             'image': 'plus'
         }]
     })
@@ -100,6 +102,7 @@ class SliceForm(forms.Form):
     
 @login_required
 def new(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = SliceForm(request.POST, request.FILES) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -126,13 +129,15 @@ def new(request):
     else:
         form = SliceForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Slice",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/slices/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Slice',
+        'actions': [{
+            'name': 'Back to List',
+            'url': '/Aurora/cloud/slices/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,
@@ -243,6 +248,7 @@ class SliceDeploymentForm(forms.Form):
 
 @login_required
 def deploy(request, slice_id):
+    global view_vars
     try:
         s = Slice.objects.get(pk=slice_id)
     except Slice.DoesNotExist:
@@ -287,13 +293,15 @@ def deploy(request, slice_id):
     else:
         form = SliceDeploymentForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Deploy Slice",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/slices/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': s,
+        'title': 'Deploy Slice',
+        'actions': [{
+            'name': 'Back to List',
+            'url': '/Aurora/cloud/slices/',
+            'image': 'chevron-left'
+        }]
+    })
     # insert slice_id in the action url
     form.action = form.action % slice_id
     c = RequestContext(request, {
@@ -376,13 +384,15 @@ def add_optimization_program(request, slice_id):
     else:
         form = OptimizationProgramForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Add Optimization Program for " + slc.name,
-        'actions': [
-            { 'name': "Back to Details", 'url': "/Aurora/cloud/slices/" + slice_id + "/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': slc,
+        'title': 'Add Optimization Program for ' + slc.name,
+        'actions': [{
+            'name': 'Back to Details',
+            'url': '/Aurora/cloud/slices/' + slice_id + '/',
+            'image': 'chevron-left'
+        }]
+    })
     # insert slice_id in the action url
     form.action = form.action % slice_id
     c = RequestContext(request, {

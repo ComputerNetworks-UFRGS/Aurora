@@ -13,11 +13,14 @@ from cloud.models.event import Event, EVENT_STATES, RELATIONAL_OPERATION
 from cloud.models.metric import Metric
 from cloud.models.slice import Slice
 from cloud.models.optimization_program import OptimizationProgram
-from cloud.helpers import session_flash
+from cloud.helpers import session_flash, paginate
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Programs"
+view_vars = {
+    'active_menu': 'Monitoring',
+    'active_section': 'Events',
+}
 
 #Form index filters
 class EventsIndexFiltersForm(forms.Form):
@@ -31,6 +34,9 @@ class EventsIndexFiltersForm(forms.Form):
 
 @login_required
 def index(request):
+    global view_vars
+    t = loader.get_template('events-index.html')
+
     form = EventsIndexFiltersForm(request.GET) # Filter form
     if form.is_valid():
         s = form.cleaned_data['s']
@@ -44,25 +50,20 @@ def index(request):
     else:
         evs = []
 
-    paginator = Paginator(evs, 10) # Show 10 objects per page
+    event_list = paginate.paginate(evs, request)
 
-    p = request.GET.get('p')
-
-    try:
-        event_list = paginator.page(p)
-    except (PageNotAnInteger, TypeError):
-        event_list = paginator.page(1) # If page is not an integer, deliver first page.
-    except EmptyPage:
-        event_list = paginator.page(paginator.num_pages) # If page is out of range (e.g. 9999), deliver last page of results.
-
-    t = loader.get_template('events-index.html')
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Events List",
-        'actions': [{ 'name': "New Event", 'url': "/Aurora/cloud/events/new/" }]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'Events List',
+        'actions': [{
+            'name': 'New Event',
+            'url': '/Aurora/cloud/events/new/',
+            'image': 'plus'
+        }]
+    })
     c = Context({
         'event_list': event_list,
+        'paginate_list': event_list,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request)
@@ -71,17 +72,21 @@ def index(request):
 
 @login_required
 def detail(request, event_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Event Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/events/" },
-        ]
-    }
+    global view_vars
     try:
         event = Event.objects.get(pk=event_id)
     except Event.DoesNotExist:
         raise Http404
+
+    view_vars.update({
+        'active_item': event,
+        'title': 'Event Details',
+        'actions': [{
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/events/',
+            'image': 'chevron-left'
+        }]
+    })
     return render_to_response('events-detail.html', {'event': event, 'view_vars': view_vars, 'request': request })
 
 #Form for new Event creation
@@ -98,6 +103,7 @@ class EventForm(forms.Form):
     
 @login_required
 def new(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = EventForm(request.POST) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -121,13 +127,15 @@ def new(request):
     else:
         form = EventForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Event",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/events/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Event',
+        'actions': [{ 
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/events/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,

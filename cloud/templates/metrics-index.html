@@ -8,7 +8,6 @@
       <thead>
         <tr>
             <th>Name</th>
-            <th>Filename</th>
             <th>Size</th>
             <th>Data Type</th>
             <th>Scope</th>
@@ -21,10 +20,6 @@
       {% for metric in metric_list %}
         <tr>
             <td><a href="/Aurora/cloud/metrics/{{ metric.id }}/">{{ metric }}</a></td>
-            <td>{% if metric.file %}
-                {{ metric.file }}
-                {% endif %}
-            </td>
             <td>{% if metric.file %}
                 {{ metric.file.file.size|unit_convert:"B" }}
                 {% endif %}

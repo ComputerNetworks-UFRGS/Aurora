@@ -8,7 +8,6 @@
       <thead>
         <tr>
             <th>Name</th>
-            <th>Filename</th>
             <th>Size</th>
             <th>State</th>
             <th>Description</th>
@@ -19,10 +18,6 @@
       {% for program in program_list %}
         <tr>
             <td><a href="/Aurora/cloud/deployment_programs/{{ program.id }}/">{{ program }}</a></td>
-            <td>{% if program.file %}
-                {{ program.file }}
-                {% endif %}
-            </td>
             <td>{% if program.file %}
                 {{ program.file.file.size|unit_convert:"B" }}
                 {% endif %}

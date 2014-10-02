@@ -1,6 +1,7 @@
 # Personalized tags and filters for cloud application
 from __future__ import division  # Makes integer divisions return float values
 import logging
+from django import forms
 from django import template
 from django.utils.html import conditional_escape
 from django.utils.safestring import mark_safe
@@ -229,3 +230,25 @@ def abbreviate(value, arg):
         return mark_safe("<span title='" + conditional_escape(value) + "'>" + conditional_escape(abbrev) + "</span>")
     else:
         return mark_safe(conditional_escape(value))
+
+
+# To help rendering bootstrap forms (borrowed from https://github.com/tzangms/django-bootstrap-form/)
+
+@register.filter
+def is_checkbox(field):
+    return isinstance(field.field.widget, forms.CheckboxInput)
+
+
+@register.filter
+def is_multiple_checkbox(field):
+    return isinstance(field.field.widget, forms.CheckboxSelectMultiple)
+
+
+@register.filter
+def is_radio(field):
+    return isinstance(field.field.widget, forms.RadioSelect)
+
+
+@register.filter
+def is_file(field):
+    return isinstance(field.field.widget, forms.FileInput)

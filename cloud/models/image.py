@@ -29,7 +29,6 @@ IMG_TARGETS = (
 
 class Image(BaseModel):
     name = models.CharField(max_length=200)
-    path = models.CharField(max_length=200)
     file_format = models.CharField(
         max_length=10,
         choices=IMG_FORMATS,
@@ -43,20 +42,19 @@ class Image(BaseModel):
         db_index=True
     )
     description = models.TextField(blank=True, null=True)
+    image_file = models.FileField(upload_to='images')
 
     # Deploys the image to a host based on the virtual machine object it 
     # is associated with
     def deploy(self, virtual_machine):
         # Create a copy of the VM disk
-        disk_path = self.path + "." + str(virtual_machine.id)
-
-        # OLD WAY: shutil.copy(self.image.path, self.disk_path)
+        disk_path = "/" + self.image_file.name + "." + str(virtual_machine.id)
 
         # First sync the local image remotelly to speedup future copies
+        rsync_path = self.image_file.path.replace(self.image_file.name, './'+self.image_file.name)
         out = commands.getstatusoutput(
-            'rsync -u ' + self.path + ' ' +
-            'root@' + virtual_machine.host.hostname +
-            ':' + self.path
+            'rsync --update --relative ' + rsync_path + ' ' +
+            'root@' + virtual_machine.host.hostname + ':/'
         )
         if out[0] != 0:
             raise self.ImageException(
@@ -66,7 +64,7 @@ class Image(BaseModel):
         # Then copy the image for the virtual machine 
         out = commands.getstatusoutput(
             'ssh root@' + virtual_machine.host.hostname + ' ' + 
-            '"cp -f ' + self.path + ' ' + disk_path + '"'
+            '"cp -f /' + self.image_file.name + ' ' + disk_path + '"'
         )
         if out[0] != 0:
             raise self.ImageException(
@@ -76,10 +74,7 @@ class Image(BaseModel):
 
     # Current size on disk of this image
     def get_size(self):
-        try:
-            return os.path.getsize(self.path)
-        except Exception as e:
-            return str(e)
+        return self.image_file.file.size
 
     def __unicode__(self):
         return self.name

@@ -11,7 +11,11 @@ from cloud.widgets.number_input import NumberInput
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Monitoring"
+view_vars = {
+    'active_item': None,
+    'active_menu': 'Monitoring',
+    'active_section': 'Settings',
+}
 
 #Form for editting monitoring settings
 class MonitoringForm(forms.ModelForm):
@@ -28,6 +32,7 @@ class MonitoringForm(forms.ModelForm):
 
 @login_required
 def settings(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = MonitoringForm(request.POST) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -46,10 +51,9 @@ def settings(request):
     else:
         form = MonitoringForm(instance=Monitoring.load()) # A form with saved info
 
-    view_vars = {
-        'active_menu': active_menu,
+    view_vars.update({
         'title': "Monitoring Settings",
-    }
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,

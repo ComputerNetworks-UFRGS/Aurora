@@ -3,11 +3,13 @@ import logging
 from django import forms
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.core.validators import EMPTY_VALUES
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse, Http404
 from django.shortcuts import render_to_response, redirect
 from django.template import Context, RequestContext
 from django.template.loader import get_template
-from cloud.helpers import session_flash
+from cloud.helpers import session_flash, paginate
 from cloud.models.virtual_router import VirtualRouter, ROUTING_PROTOCOLS, CP_TYPES
 from cloud.models.host import Host
 from cloud.models.slice import Slice
@@ -15,14 +17,16 @@ from cloud.widgets.number_input import NumberInput
 from cloud.models.remote_controller import CONNECTION_TYPES,\
     CONTROLLER_TYPE, RemoteController
 from cloud.models.virtual_interface import VirtualInterface
-from django.core.validators import EMPTY_VALUES
 from cloud.models.virtual_device import VirtualDevice
-from django.core.exceptions import ValidationError
 from cloud.models.virtual_link import VirtualLink
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Network"
+view_vars = {
+    'active_item': None,
+    'active_menu': 'Network',
+    'active_section': 'Virtual Routers',
+}
 
 #Form index filters
 class VirtualRoutersIndexFiltersForm(forms.Form):
@@ -35,6 +39,7 @@ class VirtualRoutersIndexFiltersForm(forms.Form):
 
 @login_required
 def index(request):
+    global view_vars
     form = VirtualRoutersIndexFiltersForm(request.GET) # Filter form
     if form.is_valid():
         s = form.cleaned_data['s']
@@ -48,31 +53,24 @@ def index(request):
     else:
         vrs = []
     
-    paginator = Paginator(vrs, 10) # Show 10 objects per page
-
-    p = request.GET.get('p')
-
-    try:
-        vr_list = paginator.page(p)
-    except (PageNotAnInteger, TypeError):
-        vr_list = paginator.page(1) # If page is not an integer, deliver first page.
-    except EmptyPage:
-        vr_list = paginator.page(paginator.num_pages) # If page is out of range (e.g. 9999), deliver last page of results.
+    vr_list = paginate.paginate(vrs, request)
 
     t = get_template('virtual-routers-index.html')
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Virtual Routers List",
-        'actions': [
-            { 'name': "New Virtual Router", 'url': "/Aurora/cloud/virtual_routers/new/" },
-            #{ 'name': "Synchronize", 'url': "/Aurora/cloud/virtual_routers/sync/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'Virtual Routers List',
+        'actions': [{
+            'name': 'New Virtual Router',
+            'url': '/Aurora/cloud/virtual_routers/new/',
+            'image': 'plus'
+        }]
+    })
     
     c = Context({
-        'form': form,
         'view_vars': view_vars,
         'vr_list': vr_list,
+        'paginate_list': vr_list,
+        'filter_form': form,
         'request': request,
         'flash': session_flash.get_flash(request)
     })
@@ -81,18 +79,21 @@ def index(request):
 
 @login_required
 def detail(request, virtual_router_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Virtual Router Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/virtual_routers/" },
-        ]
-    }
+    global view_vars
     try:
         vr = VirtualRouter.objects.get(pk=virtual_router_id)
     except VirtualRouter.DoesNotExist:
         raise Http404
 
+    view_vars.update({
+        'active_item': vr,
+        'title': 'Virtual Router Details',
+        'actions': [{
+            'name': 'Back to List',
+            'url': '/Aurora/cloud/virtual_routers/',
+            'image': 'chevron-left'
+        }]
+    })
     if_list = vr.virtualinterface_set.all()
     ofc_list = vr.remotecontroller_set.all()
     
@@ -109,6 +110,7 @@ class VirtualRouterForm(forms.Form):
 
 @login_required
 def new(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = VirtualRouterForm(request.POST) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -133,13 +135,15 @@ def new(request):
     else:
         form = VirtualRouterForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Virtual Router",
-        'actions': [
-            { 'name': "Back to List", 'url': "javascript: history.back()" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Virtual Router',
+        'actions': [{
+            'name': 'Back to List',
+            'url': 'javascript: history.back()',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,
@@ -155,7 +159,7 @@ def new(request):
 #@login_required
 #def migrate(request, virtual_router_id):
 #    try:
-#        vm = VirtualRouter.objects.get(pk=virtual_router_id)
+#        vr = VirtualRouter.objects.get(pk=virtual_router_id)
 #    except VirtualRouter.DoesNotExist:
 #        raise Http404
 #
@@ -167,16 +171,16 @@ def new(request):
 #            # Migrate Virtual Router to new host
 #            try:
 #                # TODO: investigate other options in the migration operation in libvirt 
-#                vm.migrate(form.cleaned_data['host'])
+#                vr.migrate(form.cleaned_data['host'])
 #
 #                # Save Virtual Router with new host
-#                vm.host = form.cleaned_data['host']
-#                vm.save()
+#                vr.host = form.cleaned_data['host']
+#                vr.save()
 #                
 #                session_flash.set_flash(request, "Virtual Router successfully migrated")
-#            except vm.VirtualRouterException as e:
-#                session_flash.set_flash(request, "Could not migrate Virtual Router %s: %s" % (vm.name, str(e)), "danger")
-#                logger.warning("Could not migrate Virtual Router %s: %s" % (vm.name, str(e)))
+#            except vr.VirtualRouterException as e:
+#                session_flash.set_flash(request, "Could not migrate Virtual Router %s: %s" % (vr.name, str(e)), "danger")
+#                logger.warning("Could not migrate Virtual Router %s: %s" % (vr.name, str(e)))
 #            
 #            return redirect('cloud-virtual-routers-index') # Redirect after POST
 #    else:
@@ -191,7 +195,7 @@ def new(request):
 #        ]
 #    }
 #    c = RequestContext(request, {
-#        'vm': vm,
+#        'vr': vr,
 #        'form': form,
 #        'view_vars': view_vars,
 #        'request': request,
@@ -210,6 +214,7 @@ class RemoteControllerForm(forms.Form):
     
 @login_required
 def new_remote_controller(request, virtual_router_id):
+    global view_vars
     try:
         vr = VirtualRouter.objects.get(pk=virtual_router_id)
     except VirtualRouter.DoesNotExist:
@@ -241,13 +246,15 @@ def new_remote_controller(request, virtual_router_id):
     else:
         form = RemoteControllerForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Remote Controller for " + vr.name,
-        'actions': [
-            { 'name': "Back to Details", 'url': "/Aurora/cloud/virtual_routers/" + virtual_router_id + "/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': vr,
+        'title': 'New Remote Controller for ' + vr.name,
+        'actions': [{
+            'name': 'Back to Details',
+            'url': '/Aurora/cloud/virtual_routers/' + virtual_router_id + '/',
+            'image': 'chevron-left'
+        }]
+    })
     # insert slice_id in the action url
     form.action = form.action % virtual_router_id
     c = RequestContext(request, {
@@ -266,6 +273,7 @@ class VirtualInterfaceForm(forms.Form):
     
 @login_required
 def new_virtual_interface(request, virtual_router_id):
+    global view_vars
     try:
         vr = VirtualRouter.objects.get(pk=virtual_router_id)
     except VirtualRouter.DoesNotExist:
@@ -288,13 +296,15 @@ def new_virtual_interface(request, virtual_router_id):
     else:
         form = VirtualInterfaceForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Virtual Interface for " + vr.name,
-        'actions': [
-            { 'name': "Back to Details", 'url': "/Aurora/cloud/virtual_routers/" + virtual_router_id + "/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': vr,
+        'title': 'New Virtual Interface for ' + vr.name,
+        'actions': [{
+            'name': 'Back to Details',
+            'url': '/Aurora/cloud/virtual_routers/' + virtual_router_id + '/',
+            'image': 'chevron-left'
+        }]
+    })
     # insert slice_id in the action url
     form.action = form.action % virtual_router_id
     c = RequestContext(request, {
@@ -309,20 +319,20 @@ def new_virtual_interface(request, virtual_router_id):
 @login_required
 def delete(request, virtual_router_id):
     try:
-        vm = VirtualRouter.objects.get(pk=virtual_router_id)
+        vr = VirtualRouter.objects.get(pk=virtual_router_id)
     except VirtualRouter.DoesNotExist:
         raise Http404
 
     try:
-        vm.undeploy()
-        session_flash.set_flash(request, "Virtual Router %s was successfully deleted!" % vm.name)
-        logger.debug("Virtual Router %s was successfully deleted!" % vm.name)
-    except vm.VirtualRouterException as e:
-        session_flash.set_flash(request, "Could not undefine Virtual Router on hypervisor %s: %s" % (vm.name, str(e)), "warning")
-        logger.warning("Could not undefine Virtual Router on hypervisor %s: %s" % (vm.name, str(e)))
+        vr.undeploy()
+        session_flash.set_flash(request, "Virtual Router %s was successfully deleted!" % vr.name)
+        logger.debug("Virtual Router %s was successfully deleted!" % vr.name)
+    except vr.VirtualRouterException as e:
+        session_flash.set_flash(request, "Could not undefine Virtual Router on hypervisor %s: %s" % (vr.name, str(e)), "warning")
+        logger.warning("Could not undefine Virtual Router on hypervisor %s: %s" % (vr.name, str(e)))
     
     # Delete VM from database anyway
-    vm.delete()
+    vr.delete()
     
     return redirect(request.META['HTTP_REFERER'])
 
@@ -330,11 +340,11 @@ def delete(request, virtual_router_id):
 @login_required
 def interfaces(request, virtual_router_id):
     try:
-        vm = VirtualRouter.objects.get(pk=virtual_router_id)
+        vr = VirtualRouter.objects.get(pk=virtual_router_id)
     except VirtualRouter.DoesNotExist:
         raise Http404
 
-    if_list = vm.get_interface_info()
+    if_list = vr.get_interface_info()
     
     output = []
     for interface in if_list:
@@ -381,9 +391,10 @@ class ConnectVirtualDeviceForm(forms.Form):
     virtual_interface = VirtualInterfaceModelChoiceField(queryset=VirtualInterface.objects.none(), label="Interface")
     
 def connect_virtual_device(request, virtual_router_id, virtual_interface_id):
+    global view_vars
     try:
-        rt = VirtualRouter.objects.get(pk=virtual_router_id)
-        interface = VirtualInterface.objects.get(pk=virtual_interface_id, attached_to=rt)
+        vr = VirtualRouter.objects.get(pk=virtual_router_id)
+        interface = VirtualInterface.objects.get(pk=virtual_interface_id, attached_to=vr)
     except VirtualRouter.DoesNotExist:
         raise Http404
     
@@ -395,37 +406,40 @@ def connect_virtual_device(request, virtual_router_id, virtual_interface_id):
             virtual_interface = form.cleaned_data['virtual_interface']
             
             virtual_link = VirtualLink()
-            virtual_link.belongs_to_slice = rt.belongs_to_slice # Same slice as the router
+            virtual_link.belongs_to_slice = vr.belongs_to_slice # Same slice as the router
             virtual_link.if_start = interface
             virtual_link.if_end = virtual_interface
             
             virtual_link.save()
+            try:
+                virtual_link.establish()
+                session_flash.set_flash(request, "Virtual Device successfully connected")
+            except virtual_link.VirtualLinkException as e:
+                session_flash.set_flash(request,
+                    "Could not establish Virtual Link %s: %s" % (str(virtual_link), str(e)),
+                    "danger"
+                )
             
-            # TODO: Write generic link establish function
-            if form.cleaned_data['virtual_device_type'] == "virtual_routers":
-                virtual_link.establish_iplink()
-            elif form.cleaned_data['virtual_device_type'] == "virtual_machines":
-                virtual_link.establish_ovs()
-                        
-            session_flash.set_flash(request, "Virtual Device successfully connected")
             return redirect('/Aurora/cloud/virtual_routers/' + virtual_router_id + '/') # Redirect after POST
     else:
         form = ConnectVirtualDeviceForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Connect Virtual Device on interface " + interface.alias + " of " + rt.name,
-        'actions': [
-            { 'name': "Back to Details", 'url': "/Aurora/cloud/virtual_routers/" + virtual_router_id + "/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': vr,
+        'title': 'Connect Virtual Device on interface ' + interface.alias + ' of ' + vr.name,
+        'actions': [{
+            'name': 'Back to Details',
+            'url': '/Aurora/cloud/virtual_routers/' + virtual_router_id + '/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
-        'virtual_router': rt,
+        'virtual_router': vr,
         'virtual_interface': interface,
         'form': form,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request) 
     })
-    return render_to_response('virtual-routers-connect-virtual-device.html', c)
+    return render_to_response('base-form.html', c)
 

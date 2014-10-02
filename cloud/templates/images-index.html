@@ -2,11 +2,10 @@
 {% load utils %}
 {% block content-body %}
 {% if image_list %}
-    <table class="table table-striped table-hover">
+    <table class="table table-striped table-hover table-bordered">
       <thead>
         <tr>
             <th>Name</th>
-            <th>Path</th>
             <th>Format</th>
             <th>Size</th>
             <th>Description</th>
@@ -17,7 +16,6 @@
         {% for image in image_list %}
         <tr>
             <td><a href="/Aurora/cloud/images/{{ image.id }}/">{{ image.name }}</a></td>
-            <td>{{ image.path }}</td>
             <td>{{ image.get_file_format_display }}</td>
             <td>{{ image.get_size|unit_convert:"B" }}</td>
             <td>{{ image.description }}</td>

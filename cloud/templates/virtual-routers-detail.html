@@ -4,18 +4,19 @@
 {% if vr %}
 <div class="row">
   <div class="col-md-12">
+    <h4>Virtual Router Configuration</h4>
     <table class="table table-striped table-hover table-bordered">
       <tbody>
         <tr>
-            <td><b>Name</b></td>
+            <td class="td-label">Name</td>
             <td>{{ vr.name }}</td>
         </tr>
         <tr>
-            <td><b>Routing Protocol</b></td>
+            <td class="td-label">Routing Protocol</td>
             <td>{{ vr.get_cp_routing_protocol_display }}</td>
         </tr>
         <tr>
-            <td><b>State</b></td>
+            <td class="td-label">State</td>
             <td>{{ vr.current_state }}</td>
         </tr>
       </tbody>
@@ -27,7 +28,10 @@
     <h4>Interface Information</h4>
   </div>
   <div class="col-md-6">
-    <a class="btn btn-primary pull-right" href="/Aurora/cloud/virtual_routers/{{ vr.id }}/new_virtual_interface/">Add Interface</a>
+    <a class="btn btn-primary btn-xs pull-right" href="/Aurora/cloud/virtual_routers/{{ vr.id }}/new_virtual_interface/">
+      <span class="glyphicon glyphicon-plus"></span>
+      Add Interface
+    </a>
   </div>
 </div>
 <div class="row">
@@ -51,7 +55,16 @@
 	      <td>{{ interface.mac_address }}</td>
 	      <td>{{ interface.source }}</td>
 	      <td>{{ interface.target }}</td>
-	      <td>{{ interface.list_connected_virtual_devices }}</td>
+	      <td>
+            {% for link in interface.connected_virtual_links %}
+              {% if link.if_end.attached_to == vr %}
+                {{ link.if_start.attached_to }}
+              {% else %}
+                {{ link.if_end.attached_to }}
+              {% endif %}
+	          <a class="a-danger" href="https://auroravm.inf.ufrgs.br/Aurora/cloud/virtual_links/{{ link.id }}/delete/"><span class="glyphicon glyphicon-remove-circle"></span></a>
+            {% endfor %}
+          </td>
 	      <td>
 	        <a class="btn btn-xs btn-default" href="/Aurora/cloud/virtual_routers/{{ vr.id }}/connect_virtual_device/{{ interface.id }}/">Connect Device</a>
             <a class="btn btn-xs btn-danger" href="/Aurora/cloud/virtual_routers/{{ vr.id }}/delete_virtual_interface/{{ interface.id }}/">Delete</a>
@@ -71,7 +84,10 @@
     <h4>Controller Information</h4>
   </div>
   <div class="col-md-6">
-	<a class="btn btn-primary pull-right" href="/Aurora/cloud/virtual_routers/{{ vr.id }}/new_remote_controller/">Add Controller</a>
+	<a class="btn btn-primary btn-xs pull-right" href="/Aurora/cloud/virtual_routers/{{ vr.id }}/new_remote_controller/">
+      <span class="glyphicon glyphicon-plus"></span>
+      Add Controller
+    </a>
   </div>
 </div>
 <div class="row">

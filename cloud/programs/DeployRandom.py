@@ -1,8 +1,8 @@
 import time
 import logging
+from random import randint
 from cloud.programs.deployment_program import DeploymentProgram
 from cloud.models.host import Host
-from random import randint
 from cloud.models.base_model import BaseModel
 from cloud.models.virtual_machine import VirtualMachine
 from cloud.models.virtual_router import VirtualRouter

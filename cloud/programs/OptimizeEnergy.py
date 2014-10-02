@@ -1,4 +1,3 @@
-# This is only a test file
 import logging
 from cloud.programs.optimization_program import OptimizationProgram
 import time
@@ -65,4 +64,3 @@ class OptimizeEnergy(OptimizationProgram):
                 new_candidate = candidate
 	
         return new_candidate
-

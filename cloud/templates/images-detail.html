@@ -2,8 +2,6 @@
 {% load utils %}
 {% block content-body %}
 {% if image %}
-<div class="row">
-  <div class="col-md-12">
     <table class="table table-striped table-hover table-bordered">
       <tbody>
         <tr>
@@ -12,7 +10,7 @@
         </tr>
         <tr>
             <td><b>Path</b></td>
-            <td>{{ image.path }}</td>
+            <td>{{ image.image_file.path }}</td>
         </tr>
         <tr>
             <td><b>Format</b></td>
@@ -32,7 +30,5 @@
         </tr>
       </tbody>
     </table>
-  </div>
-</div>
 {% endif %}
 {% endblock %}

@@ -9,23 +9,34 @@ from django.shortcuts import render_to_response, redirect
 from django.template import Context, loader
 from django.template.context import RequestContext
 from cloud.models.metric import Metric, METRIC_SCOPES, METRIC_STATES, RETURN_DATA_TYPE
-from cloud.helpers import session_flash
+from cloud.helpers import session_flash, paginate
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Programs"
+view_vars = {
+    'active_menu': 'Programs',
+    'active_section': 'Metrics',
+}
 
 @login_required
 def index(request):
+    global view_vars
     t = loader.get_template('metrics-index.html')
-    metric_list = Metric.objects.all()
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Metrics List",
-        'actions': [{ 'name': "New Metric", 'url': "/Aurora/cloud/metrics/new/" }]
-    }
+    metrics = Metric.objects.all()
+    metric_list = paginate.paginate(metrics, request)
+
+    view_vars.update({
+        'active_item': None,
+        'title': 'Metrics List',
+        'actions': [{ 
+            'name': 'New Metric', 
+            'url': "/Aurora/cloud/metrics/new/",
+            'image': 'plus'
+        }]
+    })
     c = Context({
         'metric_list': metric_list,
+        'paginate_list': metric_list,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request)
@@ -34,17 +45,21 @@ def index(request):
 
 @login_required
 def detail(request, metric_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Metric Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/metrics/" },
-        ]
-    }
+    global view_vars
     try:
         metric = Metric.objects.get(pk=metric_id)
     except Metric.DoesNotExist:
         raise Http404
+
+    view_vars.update({
+        'active_item': metric,
+        'title': 'Metric Details',
+        'actions': [{ 
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/metrics/',
+            'image': 'chevron-left'
+        }]
+    })
     return render_to_response('metrics-detail.html', {'metric': metric, 'view_vars': view_vars, 'request': request })
 
 #Form for new Metric creation
@@ -100,13 +115,15 @@ def new(request):
     else:
         form = MetricForm() # An unbound form
     
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "New Metric",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/metrics/" },
-        ]
-    }
+    view_vars.update({
+        'active_item': None,
+        'title': 'New Metric',
+        'actions': [{
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/metrics/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,

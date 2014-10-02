@@ -8,3 +8,6 @@ tags
 .project
 .pydevproject
 circuits.json
+cloud/programs/*
+cloud/metrics/*
+cloud/images/*

@@ -1,3 +1,8 @@
+import logging
+
+# Configure logging for the module name
+logger = logging.getLogger(__name__)
+
 # Helper to handle flash messages of the system
 def set_flash(request, message, message_type = "success"):
     # Restart session flash if it is not a list already
@@ -5,6 +10,9 @@ def set_flash(request, message, message_type = "success"):
         request.session["flash"] = []
     
     request.session["flash"] += [{ 'type': message_type, 'message': message }]
+
+    if message_type == "danger":
+        logger.warning(message)
     
 # Clears flash from session
 def clear_flash(request):

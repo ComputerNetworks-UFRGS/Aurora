@@ -61,6 +61,14 @@ class VirtualInterface(BaseModel):
             output.append(vlink.if_start.attached_to)
         return output
 
+    def connected_virtual_links(self):
+        output = []
+        for vlink in self.virtuallink_set_start.all():
+            output.append(vlink)
+        for vlink in self.virtuallink_set_end.all():
+            output.append(vlink)
+        return output
+
     def __unicode__(self):
         return self.alias
 

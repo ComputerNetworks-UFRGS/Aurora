@@ -9,24 +9,34 @@ from django.template import Context, loader
 from django.template.context import RequestContext
 from cloud.models.program import PROGRAM_STATES
 from cloud.models.deployment_program import DeploymentProgram
-from cloud.helpers import session_flash
+from cloud.helpers import session_flash, paginate
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)
-active_menu = "Programs"
-
+view_vars = {
+    'active_menu': 'Programs',
+    'active_section': 'Deployment Programs',
+}
 
 @login_required
 def index(request):
+    global view_vars
     t = loader.get_template('deployment-programs-index.html')
-    program_list = DeploymentProgram.objects.all()
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Deployment Programs List",
-        'actions': [{ 'name': "New Deployment Program", 'url': "/Aurora/cloud/deployment_programs/new/" }]
-    }
+    programs = DeploymentProgram.objects.all()
+    program_list = paginate.paginate(programs, request)
+
+    view_vars.update({
+        'active_item': None,
+        'title': 'Deployment Programs List',
+        'actions': [{ 
+            'name': 'New Deployment Program', 
+            'url': '/Aurora/cloud/deployment_programs/new/',
+            'image': 'plus'
+        }]
+    })
     c = Context({
         'program_list': program_list,
+        'paginate_list': program_list,
         'view_vars': view_vars,
         'request': request,
         'flash': session_flash.get_flash(request)
@@ -35,17 +45,21 @@ def index(request):
 
 @login_required
 def detail(request, deployment_program_id):
-    view_vars = {
-        'active_menu': active_menu,
-        'title': "Deployment Program Details",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/deployment_programs/" },
-        ]
-    }
+    global view_vars
     try:
         deployment_program = DeploymentProgram.objects.get(pk=deployment_program_id)
     except DeploymentProgram.DoesNotExist:
         raise Http404
+
+    view_vars.update({
+        'active_item': deployment_program,
+        'title': "Deployment Program Details",
+        'actions': [{
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/deployment_programs/',
+            'image': 'chevron-left'
+        }]
+    })
     return render_to_response('deployment-programs-detail.html', {'program': deployment_program, 'view_vars': view_vars, 'request': request })
 
 #Form for new Deployment Program creation
@@ -77,6 +91,7 @@ class DeploymentProgramForm(forms.Form):
 
 @login_required
 def new(request):
+    global view_vars
     if request.method == 'POST': # If the form has been submitted...
         form = DeploymentProgramForm(request.POST) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
@@ -97,13 +112,15 @@ def new(request):
     else:
         form = DeploymentProgramForm() # An unbound form
 
-    view_vars = {
-        'active_menu': active_menu,
+    view_vars.update({
+        'active_item': None,
         'title': "New Deployment Program",
-        'actions': [
-            { 'name': "Back to List", 'url': "/Aurora/cloud/deployment_programs/" },
-        ]
-    }
+        'actions': [{
+            'name': 'Back to List', 
+            'url': '/Aurora/cloud/deployment_programs/',
+            'image': 'chevron-left'
+        }]
+    })
     c = RequestContext(request, {
         'form': form,
         'view_vars': view_vars,
