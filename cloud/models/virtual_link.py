@@ -7,6 +7,8 @@ import socket
 from django.conf import settings
 from django.db import models
 from cloud.models.virtual_interface import VirtualInterface
+from cloud.models.virtual_machine import VirtualMachine
+from cloud.models.virtual_router import VirtualRouter
 from cloud.models.base_model import BaseModel
 
 # Get an instance of a logger
@@ -60,17 +62,40 @@ class VirtualLink(BaseModel):
     def establish(self):
         result = False
 
+        # Finding attachment devices
+        if hasattr(self.if_start.attached_to, "virtualrouter"):
+            dev_start = self.if_start.attached_to.virtualrouter
+        elif hasattr(self.if_start.attached_to, "virtualmachine"):
+            dev_start = self.if_start.attached_to.virtualmachine
+        else:
+            raise self.VirtualLinkException('Interface not attached to a valid virtual device')
+        if hasattr(self.if_end.attached_to, "virtualrouter"):
+            dev_end = self.if_end.attached_to.virtualrouter
+        elif hasattr(self.if_end.attached_to, "virtualmachine"):
+            dev_end = self.if_end.attached_to.virtualmachine
+        else:
+            raise self.VirtualLinkException('Interface not attached to a valid virtual device')
+
         # Router to Router link
-        if hasattr(self.if_start.attached_to, "virtualrouter") and hasattr(self.if_end.attached_to, "virtualrouter"):
-            # TODO: Old Way with iplink
-            #return self.establish_iplink()
-            result = self.establish_ovspatch()
+        if isinstance(dev_start, VirtualRouter) and isinstance(dev_end, VirtualRouter):
+            # If both routers are at the same host establish with ovspatch
+            if dev_start.host == dev_end.host:
+                result = self.establish_ovspatch()
+            else:
+                # TODO: Implement this, maybe a gre tunnel can make it
+                raise self.VirtualLinkException('Cannot connect two routers in different hosts')
+            
         # VM to VM link
-        elif hasattr(self.if_start.attached_to, "virtualmachine") and hasattr(self.if_end.attached_to, "virtualmachine"):
+        elif isinstance(dev_start, VirtualMachine) and isinstance(dev_end, VirtualMachine):
             result = self.establish_of()
         # VM to Router (or vice-versa) link
         else:
-            result = self.establish_ovs()
+            # If both devices are at the same host establish with ovs
+            if dev_start.host == dev_end.host:
+                result = self.establish_ovs()
+            else:
+                # TODO: Implement this, maybe a gre tunnel can make it
+                raise self.VirtualLinkException('Cannot connect two virtual devices in different hosts')
 
         if result:
             self.state = 'establish'
@@ -277,16 +302,24 @@ class VirtualLink(BaseModel):
         bridge2 = self.if_end.attached_to.virtualrouter.dev_name
         port1 = bridge1 + '_to_' + bridge2
         port2 = bridge2 + '_to_' + bridge1
+        h1 = self.if_start.attached_to.virtualrouter.host
+        h2 = self.if_end.attached_to.virtualrouter.host
+        if h1 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge1) + ")")
+        if h2 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge2) + ")")
+        h1_ip = socket.gethostbyname(h1.hostname)
+        h2_ip = socket.gethostbyname(h2.hostname) # Should be the same
 
         # Add patch port in bridge 1
-        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- add-port ' + bridge1 + ' ' + port1 + ' -- set interface ' + port1 + ' type=patch options:peer=' + port2
+        cmd = 'ovs-vsctl --db=tcp:' + h1_ip + ':8888 --timeout=3 -- add-port ' + bridge1 + ' ' + port1 + ' -- set interface ' + port1 + ' type=patch options:peer=' + port2
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
             raise self.VirtualLinkException("Could not add patch (" + port1 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
 
         # Add patch port in bridge 2
-        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- add-port ' + bridge2 + ' ' + port2 + ' -- set interface ' + port2 + ' type=patch options:peer=' + port1
+        cmd = 'ovs-vsctl --db=tcp:' + h2_ip + ':8888 --timeout=3 -- add-port ' + bridge2 + ' ' + port2 + ' -- set interface ' + port2 + ' type=patch options:peer=' + port1
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
@@ -299,15 +332,23 @@ class VirtualLink(BaseModel):
         bridge2 = self.if_end.attached_to.virtualrouter.dev_name
         port1 = bridge1 + '_to_' + bridge2
         port2 = bridge2 + '_to_' + bridge1
+        h1 = self.if_start.attached_to.virtualrouter.host
+        h2 = self.if_end.attached_to.virtualrouter.host
+        if h1 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge1) + ")")
+        if h2 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge2) + ")")
+        h1_ip = socket.gethostbyname(h1.hostname)
+        h2_ip = socket.gethostbyname(h2.hostname) # Should be the same
 
         # Remove port on source bridge
-        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --if-exists del-port ' + bridge1 + ' ' + port1
+        cmd = 'ovs-vsctl --db=tcp:' + h1_ip + ':8888 --timeout=3 -- --if-exists del-port ' + bridge1 + ' ' + port1
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
             raise self.VirtualLinkException("Could not delete patch (" + port1 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
         # Remove port on destination bridge
-        cmd = 'ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 -- --if-exists del-port ' + bridge2 + ' ' + port2
+        cmd = 'ovs-vsctl --db=tcp:' + h2_ip + ':8888 --timeout=3 -- --if-exists del-port ' + bridge2 + ' ' + port2
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
@@ -321,27 +362,31 @@ class VirtualLink(BaseModel):
 
         if hasattr(self.if_start.attached_to, 'virtualrouter'):
             bridge = self.if_start.attached_to.virtualrouter.dev_name
+            bridge_host = self.if_start.attached_to.virtualrouter.host
         elif hasattr(self.if_start.attached_to, 'virtualmachine'):
             eth = self.if_start.target
 
         if hasattr(self.if_end.attached_to, 'virtualrouter'):
             bridge = self.if_end.attached_to.virtualrouter.dev_name
+            bridge_host = self.if_end.attached_to.virtualrouter.host
         elif hasattr(self.if_end.attached_to, 'virtualmachine'):
             eth = self.if_end.target
 
         if bridge == "" or eth == "":
-            logger.warning("Invalid pair of interfaces (" + eth + "-" + bridge + ")")
             raise self.VirtualLinkException("Invalid pair of interfaces (" + eth + "-" + bridge + ")")
 
+        if bridge_host is None:
+            raise self.VirtualLinkException("Target virtual router not deployed (" + str(bridge) + ")")
+
+        h_ip = socket.gethostbyname(bridge_host.hostname)
         # First remove interface from previous ovs (if it was somewhere else)
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 port-to-br ' + eth)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 port-to-br ' + eth)
         if out[0] == 0:
             # Interface was found at another switch
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 del-port "' + out[1] + '" ' + eth)
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 del-port "' + out[1] + '" ' + eth)
 
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 add-port "' + bridge + '" ' + eth)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 add-port "' + bridge + '" ' + eth)
         if out[0] != 0:
-            logger.warning("Could not add port (" + eth + ") to bridge (" + bridge + "): " + out[1])
             raise self.VirtualLinkException("Could not add port (" + eth + ") to bridge (" + bridge + "): " + out[1])
 
         return True
@@ -352,25 +397,31 @@ class VirtualLink(BaseModel):
 
         if hasattr(self.if_start.attached_to, 'virtualrouter'):
             bridge = self.if_start.attached_to.virtualrouter.dev_name
+            bridge_host = self.if_start.attached_to.virtualrouter.host
         elif hasattr(self.if_start.attached_to, 'virtualmachine'):
             eth = self.if_start.target
 
         if hasattr(self.if_end.attached_to, 'virtualrouter'):
             bridge = self.if_end.attached_to.virtualrouter.dev_name
+            bridge_host = self.if_end.attached_to.virtualrouter.host
         elif hasattr(self.if_end.attached_to, 'virtualmachine'):
             eth = self.if_end.target
 
         if bridge == "" or eth == "":
-            logger.warning("Invalid pair of interfaces (" + eth + "-" + bridge + ")")
             raise self.VirtualLinkException("Invalid pair of interfaces (" + eth + "-" + bridge + ")")
 
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 del-port "' + bridge + '" ' + eth)
+        if bridge_host is None:
+            raise self.VirtualLinkException("Target virtual router not deployed (" + str(bridge) + ")")
+
+        h_ip = socket.gethostbyname(bridge_host.hostname)
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 del-port "' + bridge + '" ' + eth)
         if out[0] != 0:
             logger.warning("Could not add port (" + eth + ") to bridge (" + bridge + "): " + out[1])
             raise self.VirtualLinkException("Could not delete port (" + eth + ") to bridge (" + bridge + "): " + out[1])
 
         return True
 
+    # DEPRECATED: iplink is not in use anymore
     def establish_iplink(self):
         eth1 = self.if_start.target
         eth2 = self.if_end.target
@@ -395,6 +446,7 @@ class VirtualLink(BaseModel):
 
         return True
 
+    # DEPRECATED: iplink is not in use anymore
     def unestablish_iplink(self):
         eth1 = self.if_start.target
         eth2 = self.if_end.target

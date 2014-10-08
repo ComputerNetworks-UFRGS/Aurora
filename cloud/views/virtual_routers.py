@@ -231,9 +231,8 @@ def new_remote_controller(request, virtual_router_id):
             rc.port = form.cleaned_data['port']
             rc.connection = form.cleaned_data['connection']
             rc.controller_type = form.cleaned_data['controller_type']
+            rc.controls_vrouter = vr
             rc.save()
-
-            rc.controls_vrouters.add(vr)
             
             try:
                 # Redeploy router to set controller
@@ -265,6 +264,31 @@ def new_remote_controller(request, virtual_router_id):
         'flash': session_flash.get_flash(request) 
     })
     return render_to_response('base-form.html', c)
+
+@login_required
+def delete_remote_controller(request, virtual_router_id, remote_controller_id):
+    try:
+        vr = VirtualRouter.objects.get(pk=virtual_router_id)
+    except VirtualRouter.DoesNotExist:
+        raise Http404
+
+    try:
+        rc = RemoteController.objects.get(pk=remote_controller_id, controls_vrouter=vr)
+    except RemoteController.DoesNotExist:
+        raise Http404
+
+    # Keep name temporarily
+    rc_name = str(rc)
+    rc.delete()
+    try:
+        # Redeploy router to set controller
+        vr.deploy()
+        session_flash.set_flash(request, "Remote Controller %s was successfully deleted!" % rc_name)
+        logger.debug("Remote Controller %s was successfully deleted!" % rc_name)
+    except vr.VirtualRouterException as e:
+        session_flash.set_flash(request, "Could not update controller list for %s: %s" % (vr.name, str(e)), "warning")
+    
+    return redirect(request.META['HTTP_REFERER'])
 
 #Form for new Virtual Interface creation
 class VirtualInterfaceForm(forms.Form):
@@ -315,6 +339,33 @@ def new_virtual_interface(request, virtual_router_id):
         'flash': session_flash.get_flash(request) 
     })
     return render_to_response('base-form.html', c)
+
+@login_required
+def delete_virtual_interface(request, virtual_router_id, virtual_interface_id):
+    try:
+        vr = VirtualRouter.objects.get(pk=virtual_router_id)
+    except VirtualRouter.DoesNotExist:
+        raise Http404
+
+    try:
+        vi = VirtualInterface.objects.get(pk=virtual_interface_id, attached_to=vr)
+    except VirtualInterface.DoesNotExist:
+        raise Http404
+
+    # Need to unestablish all virtual links associated with this interface
+    for link in vi.connected_virtual_links():
+        try:
+            link.unestablish()
+        except vr.VirtualLinkException as e:
+            session_flash.set_flash(request, "Could not unestablish Virtual Link %s: %s" % (str(link), str(e)), "warning")
+    
+    # Keep name temporarily
+    vi_name = str(vi)
+    vi.delete()
+    session_flash.set_flash(request, "Virtual Interface %s was successfully deleted!" % vi_name)
+    logger.debug("Virtual Interface %s was successfully deleted!" % vi_name)
+    return redirect(request.META['HTTP_REFERER'])
+
 
 @login_required
 def delete(request, virtual_router_id):

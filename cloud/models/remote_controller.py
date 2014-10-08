@@ -29,7 +29,7 @@ class RemoteController(BaseModel):
     connection = models.CharField(max_length=10, choices=CONNECTION_TYPES, default='tcp', db_index=True)
     controller_type = models.CharField(max_length=10, choices=CONTROLLER_TYPE, default='master', db_index=True)
 
-    controls_vrouters = models.ManyToManyField("VirtualRouter", verbose_name="Controls virtual routers")
+    controls_vrouter = models.ForeignKey('VirtualRouter')
 
     def current_state(self):
         return "Could not read state"

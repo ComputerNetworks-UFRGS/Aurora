@@ -1,5 +1,6 @@
-import logging
 import commands
+import logging
+import socket
 import time
 from django.db import models
 from cloud.models.virtual_device import VirtualDevice
@@ -40,7 +41,8 @@ class VirtualRouter(VirtualDevice):
         if self.host == None:
             return "Not Deployed"
         else:
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 br-exists "' + self.dev_name + '"')
+            h_ip = socket.gethostbyname(self.host.hostname)
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 br-exists "' + self.dev_name + '"')
             if out[0] != 0:
                 return "Not Found"
             else:
@@ -51,8 +53,12 @@ class VirtualRouter(VirtualDevice):
         t0 = time.time()
 
         state = self.current_state()
+        
+        if self.host is not None:
+            h_ip = socket.gethostbyname(self.host.hostname)
+
         if state == "Not Deployed" or state == "Not Found":
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 add-br "' + self.dev_name + '"')
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 add-br "' + self.dev_name + '"')
             if out[0] != 0:
                 raise self.VirtualRouterException('Could not deploy Virtual Router: %s %s' % (self.dev_name, out[1]))
 
@@ -65,9 +71,10 @@ class VirtualRouter(VirtualDevice):
                     # Generates a space separated list of controllers (the connection is already formatted by the __unicode__ of the controller object)
                     c_str += " " + str(c)
 
-                out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 set-controller "' + self.dev_name + '" ' + c_str)
-                if out[0] != 0:
-                    raise self.VirtualRouterException('Could not set controllers for: %s %s' % (self.dev_name, out[1]))
+        # Allways update the list of controllers, which may be empty
+        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 set-controller "' + self.dev_name + '" ' + c_str)
+        if out[0] != 0:
+            raise self.VirtualRouterException('Could not set controllers for: %s %s' % (self.dev_name, out[1]))
 
         # Time spent defining and saving
         define_time = time.time() - t0
@@ -76,7 +83,8 @@ class VirtualRouter(VirtualDevice):
 
     def undeploy(self):
         if self.current_state() == "Active":
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 del-br "' + self.dev_name + '"')
+            h_ip = socket.gethostbyname(self.host.hostname)
+            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 del-br "' + self.dev_name + '"')
             if out[0] != 0:
                 raise self.VirtualRouterException('Could not undeploy Virtual Router: %s %s' % (self.dev_name, out[1]))
 
