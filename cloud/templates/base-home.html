@@ -12,155 +12,133 @@
     <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.0/jquery-ui.min.js"></script>
 
     <!-- Bootstrap compiled and minified CSS -->
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css">
     <!-- Optional theme -->
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap-theme.min.css">
     <!-- Latest compiled and minified JavaScript -->
-    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
 
     <link rel="shortcut icon" href="/Aurora/static/cloud/img/favicon.ico">
     <script type="text/javascript" src="/Aurora/static/cloud/js/base.js"></script>
 
     <!-- Aurora specific style -->
-    <link href="/Aurora/static/cloud/css/style.css" rel="stylesheet">
+    <link href="/Aurora/static/cloud/css/style-new.css" rel="stylesheet">
   </head>
   <body>
-    <div class="navbar navbar-inverse navbar-fixed-top aurora-header" role="navigation"><!-- System header -->
+    <div class="navbar navbar-inverse navbar-static-top aurora-header" role="navigation"><!-- System header -->
       <div class="container">
+        {% if request.user.is_authenticated %}
+        <ul class="nav navbar-nav">
+          <li class="dropdown">
+            <button type="button" class="navbar-toggle dropdown-toggle pull-left" style="display: block" data-toggle="dropdown">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+            <ul class="dropdown-menu nav main-menu" role="menu">
+              <li>
+                <a href="/Aurora/" type="button">
+                  <span class="glyphicon glyphicon-home"></span>
+                  Dashboard
+                </a>
+              </li>
+              <li>
+                <a href="/Aurora/cloud/slices/">
+                  <span class="glyphicon glyphicon-fire"></span>
+                  Slice Managemen
+                </a>
+              </li>
+              <li class="dropdown-submenu">
+                <a href="#">
+                  <span class="glyphicon glyphicon-th-list"></span>
+                  <span>Computing</span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="/Aurora/cloud/virtual_machines/">Virtual Machines</a></li>
+                  <li><a href="/Aurora/cloud/images/">Images</a></li>
+                  <li><a href="/Aurora/cloud/templates/">Templates</a></li>
+                </ul>
+              </li>
+              <li class="dropdown-submenu">
+                <a href="#">
+                  <span class="glyphicon glyphicon-hdd"></span>
+                  <span>Storage</span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li class="disabled"><a href="#">Volumes</a></li>
+                  <li class="disabled"><a href="#">Pools</a></li>
+                </ul>
+              </li>
+              <li class="dropdown-submenu">
+                <a href="#">
+                  <span class="glyphicon glyphicon-road"></span>
+                  <span>Network</span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="/Aurora/cloud/virtual_links/">Virtual Links</a></li>
+                  <li><a href="/Aurora/cloud/virtual_routers/">Virtual Routers</a></li>
+                </ul>
+              </li>
+              <li class="dropdown-submenu">
+                <a href="#">
+                  <span class="glyphicon glyphicon-globe"></span>
+                  <span>Resources</span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="/Aurora/cloud/hosts/">Hosts</a></li>
+                  <li><a href="/Aurora/cloud/switches/">Switches</a></li>
+                  <li class="disabled"><a href="#">Routers</a></li>
+                </ul>
+              </li>
+              <li class="dropdown-submenu">
+                <a href="#">
+                  <span class="glyphicon glyphicon-book"></span>
+                  <span>Programs</span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="/Aurora/cloud/deployment_programs/">Deployment Programs</a></li>
+                  <li><a href="/Aurora/cloud/optimization_programs/">Optimization Programs</a></li>
+                  <li><a href="/Aurora/cloud/metrics/">Metrics</a></li>
+                </ul>
+              </li>
+              <li class="dropdown-submenu">
+                <a href="#">
+                  <span class="glyphicon glyphicon-eye-open"></span>
+                  <span> Monitoring</span>
+                </a>
+                <ul class="dropdown-menu">
+                  <li><a href="/Aurora/cloud/events/">Events</a></li>
+                  <li><a href="/Aurora/cloud/monitoring/settings/">Settings</a></li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        {% endif %}
         <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-login">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="/Aurora/">Aurora CloudManager <sup><small>beta</small></sup></a>
+          <a href="/Aurora/" class="navbar-brand">Aurora CloudManager <sup><small>beta</small></sup></a>
         </div>
-        <div class="collapse navbar-collapse" id="navbar-collapse-login">
-          <ul class="nav navbar-nav pull-right">
-            <li><a href="https://github.com/ComputerNetworks-UFRGS/Aurora" target="_blank">About</a></li>
-            {% if request.user.is_authenticated %}
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
-                <i class="icon-user icon-white"></i>
-                {{ request.user.first_name }} {{ request.user.last_name }}
-              <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li class="disabled"><a href="#">Edit Profile</a></li>
-                <li class="disabled"><a href="#">Edit Groups</a></li>
-                <li class="divider"></li>
-                <li><a href="/Aurora/accounts/logout/">Sign Out</a></li>
-              </ul>
-            </li>
-            {% endif %}
-          </ul>
-        </div>
+        <ul class="nav navbar-nav pull-right">
+          <li><a href="https://github.com/ComputerNetworks-UFRGS/Aurora" target="_blank">About</a></li>
+          {% if request.user.is_authenticated %}
+          <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+              <span class="glyphicon glyphicon-user"></span>
+              {{ request.user.first_name }} {{ request.user.last_name }}
+            <b class="caret"></b>
+            </a>
+            <ul class="dropdown-menu">
+              <li class="disabled"><a href="#">Edit Profile</a></li>
+              <li class="disabled"><a href="#">Edit Groups</a></li>
+              <li class="divider"></li>
+              <li><a href="/Aurora/accounts/logout/">Sign Out</a></li>
+            </ul>
+          </li>
+          {% endif %}
+        </ul>
       </div>
-    </div><!-- End System header -->
-    {% if request.user.is_authenticated %}
-    <div class="navbar navbar-inverse navbar-fixed-top navbar-subnav"><!-- Main menu -->
-      <div class="container">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-main">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-        </div>
-        <div class="collapse navbar-collapse" id="navbar-collapse-main">
-          <ul class="nav navbar-nav">
-            <li class="{% if view_vars.active_menu == "Dashboard" %} active{% endif %}">
-              <a href="/Aurora/">
-                <span class="glyphicon glyphicon-home"></span>
-                Dashboard
-              </a>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Slice Management" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-fire"></span>
-                Slice Management
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li><a href="/Aurora/cloud/slices/">Slices</a></li>
-              </ul>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Computing" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-th"></span>
-                <span>Computing</span>
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li><a href="/Aurora/cloud/virtual_machines/">Virtual Machines</a></li>
-                <li><a href="/Aurora/cloud/images/">Images</a></li>
-                <li><a href="/Aurora/cloud/templates/">Templates</a></li>
-              </ul>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Storage" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-hdd"></span>
-                <span>Storage</span>
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li class="disabled"><a href="#">Volumes</a></li>
-                <li class="disabled"><a href="#">Pools</a></li>
-              </ul>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Network" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-road"></span>
-                <span>Network</span>
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li><a href="/Aurora/cloud/virtual_links/">Virtual Links</a></li>
-                <li><a href="/Aurora/cloud/virtual_routers/">Virtual Routers</a></li>
-              </ul>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Resources" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-globe"></span>
-                <span>Resources</span>
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li><a href="/Aurora/cloud/hosts/">Hosts</a></li>
-                <li><a href="/Aurora/cloud/switches/">Switches</a></li>
-                <li class="disabled"><a href="#">Routers</a></li>
-              </ul>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Programs" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-book"></span>
-                <span>Programs</span>
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li><a href="/Aurora/cloud/deployment_programs/">Deployment Programs</a></li>
-                <li><a href="/Aurora/cloud/optimization_programs/">Optimization Programs</a></li>
-                <li><a href="/Aurora/cloud/metrics/">Metrics</a></li>
-              </ul>
-            </li>
-            <li class="dropdown{% if view_vars.active_menu == "Monitoring" %} active{%endif%}">
-              <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                <span class="glyphicon glyphicon-eye-open"></span>
-                <span>Monitoring</span>
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu">
-                <li><a href="/Aurora/cloud/events/">Events</a></li>
-                <li><a href="/Aurora/cloud/monitoring/settings/">Settings</a></li>
-              </ul>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div><!-- End Main menu -->
-    {% endif %}
+    </div>
     {% block content %}{% endblock %}
     <div class="aurora-footer">
       <div class="container">
@@ -169,3 +147,4 @@
     </div>
   </body>
 </html>
+
