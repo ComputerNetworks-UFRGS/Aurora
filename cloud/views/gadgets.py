@@ -54,10 +54,11 @@ def aggregate_memory_usage(request):
     hosts = Host.objects.all()
     for h in hosts:
         stats = h.get_memory_stats()
-        total_total += stats["total"]
-        total_cached += stats["cached"]
-        total_buffers += stats["buffers"]
-        total_free += stats["free"]
+        if stats:
+            total_total += stats["total"]
+            total_cached += stats["cached"]
+            total_buffers += stats["buffers"]
+            total_free += stats["free"]
     
     memory_stats = {
         "total": total_total,
@@ -78,10 +79,11 @@ def aggregate_cpu_usage(request):
     hosts = Host.objects.all()
     for h in hosts:
         stats = h.get_cpu_stats()
-        total_kernel += stats["kernel"]
-        total_idle += stats["idle"]
-        total_user += stats["user"]
-        total_iowait += stats["iowait"]
+        if stats:
+            total_kernel += stats["kernel"]
+            total_idle += stats["idle"]
+            total_user += stats["user"]
+            total_iowait += stats["iowait"]
     
     cpu_stats = {
         "kernel": total_kernel,
