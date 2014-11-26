@@ -63,6 +63,40 @@ class Host(Device):
     path = models.CharField(max_length=200, blank=True, null=True)
     extraparameters = models.CharField(max_length=200, blank=True, null=True)
 
+    # Helpers for SASL authentication (adapted from virtinst)
+    def _password_cb(self, creds):
+        retindex = 4
+    
+        for cred in creds:
+            credtype, prompt, ignore, ignore, ignore = cred
+            prompt += ": "
+    
+            res = cred[retindex]
+            if credtype == libvirt.VIR_CRED_AUTHNAME:
+                res = self.username
+            elif credtype == libvirt.VIR_CRED_PASSPHRASE:
+                res = self.password
+            else:
+                raise self.HostException("Unknown auth type in creds callback: %d" % credtype)
+    
+            cred[retindex] = res
+
+        return 0
+
+    def _auth_cb(self, creds, (passwordcb, passwordcreds)):
+        for cred in creds:
+            if cred[0] not in passwordcreds:
+                raise self.HostException("Unknown cred type '%s', expected only "
+                                         "%s" % (cred[0], passwordcreds))
+        return passwordcb(creds)
+
+    def open_auth(self, uri):
+        auth_options = [libvirt.VIR_CRED_AUTHNAME, libvirt.VIR_CRED_PASSPHRASE]
+
+        conn = libvirt.openAuth(uri, [auth_options, self._auth_cb, (self._password_cb, auth_options)], 0)
+
+        return conn
+
     def libvirt_connect(self, force_tcp=False):
         # Allows only one connection for each different host
         if force_tcp is False and self.__class__.libvirt_connections.has_key(self.id) and isinstance(self.__class__.libvirt_connections[self.id], libvirt.virConnect):
@@ -89,17 +123,12 @@ class Host(Device):
             else:
                 hostname = self.hostname
 
-            if self.username == "":
-                username = ""
-            else:
-                username = str(self.username) + "@"
-
             if self.port == None:
                 port = ""
             else:
                 port = ":" + str(self.port)
 
-        if path != "/system":
+        if not self.path.startswith("/"):
             if self.path == "":
                 path = ""
             else:
@@ -111,12 +140,17 @@ class Host(Device):
             extraparameters = "?" + str(self.extraparameters)
 
         # Format: driver[+transport]://[username@][hostname][:port]/[path][?extraparameters]
-        host_path = driver + transport + "://" + username + hostname + port + path + extraparameters
+        host_path = driver + transport + "://" + hostname + port + path + extraparameters
 
         try:
             if force_tcp:
                 return libvirt.open(host_path)
-            self.__class__.libvirt_connections[self.id] = libvirt.open(host_path)
+
+            # If SASL authentication is needed
+            if self.username and self.password:
+                self.__class__.libvirt_connections[self.id] = self.open_auth(host_path)
+            else:
+                self.__class__.libvirt_connections[self.id] = libvirt.open(host_path)
             #logger.debug("New connection: " + str(self.__class__.libvirt_connections))
             return self.__class__.libvirt_connections[self.id]
         except libvirtError as e:
