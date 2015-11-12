@@ -138,6 +138,13 @@ $ sudo chmod 600 /var/www/.ssh/id_rsa
 
 *Note: Copy this key into /root/.ssh of managed hosts so the platform can execute commands on them.*
 
+##### Copy ifup script to wotk with ethernet virtual interfaces
+
+```
+$ sudo cp Aurora/extras/qemu-ifup-aurora /etc/qemu-ifup-aurora
+$ sudo chmod a+x /etc/qemu-ifup-aurora
+```
+
 ##### To work with Floodlight
 
 The Aurora platform currently works with the [Floodlight OpenFlow Controller](http://www.projectfloodlight.org/floodlight/). By default the platform expects your installation to have a local Floodlight running. You can easily install the controller from apt:
