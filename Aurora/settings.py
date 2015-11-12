@@ -144,7 +144,7 @@ LOGGING = {
             'class': 'django.utils.log.AdminEmailHandler'
         },
         'file': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': '/var/www/Aurora/logs/main.log',
             'formatter': 'verbose'
@@ -184,11 +184,16 @@ CACHES = {
 
 # SDN Controller IP address
 # Network reachable IP address (usually not 127.0.0.1) so other switches can connect remotelly to your controller
+# Currently works with floodlight 0.90
 SDN_CONTROLLER = {
     'type': 'floodlight',
-    'ip': '10.0.0.1',
     'transport': 'tcp',
+    'ip': '127.0.0.1',
+    'port': 6633,
 }
+
+# Path to store images in remote hosts
+REMOTE_IMAGE_PATH = '/'
 
 # Override default settings locally
 try:
