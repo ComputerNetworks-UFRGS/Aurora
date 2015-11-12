@@ -16,6 +16,7 @@ from cloud.helpers import session_flash
 from cloud.models.slice import Slice
 from cloud.models.monitoring import Monitoring
 from cloud.models.virtual_machine import VirtualMachine
+from cloud.models.virtual_link import VirtualLink
 from cloud.models.virtual_router import VirtualRouter
 from cloud.models.deployment_program import DeploymentProgram
 from cloud.models.optimization_program import OptimizationProgram
@@ -200,7 +201,7 @@ def delete_remote(request, slice_name):
     try:
         slc = Slice.objects.get(name=slice_name)
     except Slice.DoesNotExist:
-        logger.debug("Attempt to delete slice %s!" % (slice_name))
+        logger.info("Attempt to delete slice %s!" % (slice_name))
         raise Http404
     
     message = None
@@ -218,7 +219,7 @@ def delete_remote(request, slice_name):
     for vm in vms:
         try:
             vm.undeploy()
-            logger.debug("VM %s was undeployed!" % str( vm ))
+            logger.info("VM %s was undeployed!" % str( vm ))
         except vm.VirtualMachineException as e:
             message = "Problems undeploying a virtual machine: " + str(e)
 
@@ -233,7 +234,7 @@ def delete_remote(request, slice_name):
     slc.delete()
     if message is None:
         message = "OK"
-    logger.debug("Slice %s was successfully deleted!" % str( slc ))
+    logger.info("Slice %s was successfully deleted!" % str( slc ))
     
     return HttpResponse(message)
 
@@ -322,7 +323,7 @@ def delete(request, slice_id):
     
     #TODO: Slice deployment is undone hardcoded here. Possibly in the future there should be undeploy programs.
     # List of Links to delete 
-    links = slc.virtuallink_set.all()
+    links = VirtualLink.objects.filter(belongs_to_slice=slc)
     for link in links:
         try:
             link.unestablish()
@@ -334,7 +335,7 @@ def delete(request, slice_id):
     for vm in vms:
         try:
             vm.undeploy()
-            logger.debug("VM %s was undeployed!" % str( vm ))
+            logger.debug("Virtual Machine %s was undeployed!" % str( vm ))
         except vm.VirtualMachineException as e:
             session_flash.set_flash(request, "Problems undeploying a virtual machine: " + str(e), "warning")
 
@@ -343,12 +344,13 @@ def delete(request, slice_id):
     for vr in vrs:
         try:
             vr.undeploy()
+            logger.debug("Virtual Router %s was undeployed!" % str( vm ))
         except vm.VirtualRouterException as e:
             session_flash.set_flash(request, "Problems undeploying a virtual router: " + str(e), "warning")
 
     slc.delete()
     session_flash.set_flash(request, "Slice %s was successfully deleted!" % str( slc ))
-    logger.debug("Slice %s was successfully deleted!" % str( slc ))
+    logger.info("Slice %s was successfully deleted!" % str( slc ))
     
     return redirect('cloud-slices-index')
 

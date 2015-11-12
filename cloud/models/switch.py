@@ -15,6 +15,7 @@ class Switch(Device):
         return self.port_set.count()
 
     def current_state(self):
+        return "Active" # TODO: Fix problem with Ping
         try:
             delay = Ping(self.hostname).run()
             return "Active (" + str(round(delay*1000, 2)) + " ms)"

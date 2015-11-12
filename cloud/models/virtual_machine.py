@@ -91,18 +91,19 @@ class VirtualMachine(VirtualDevice):
         if self.host is None:
             return "not deployed"
 
-        #TODO: Cache disbled temporarily
-        force = True
-        # Cache state for one hour (use force to read it through)
+        # Cache state for ten seconds to avoid to many consecutive readings (use force to read it through)
         curr_state = cache.get('VM' + str(self.id) + '-State')
         if curr_state is None or force:
             lv_info = self.get_libvirt_info()
             if type(lv_info) == list:
                 curr_state = LIBVIRT_VM_STATES.get(lv_info[0])
-                cache.set('VM' + str(self.id) + '-State', curr_state, 3600)
-                return curr_state
-        else:
-            return "Could not read state"
+            else:
+                curr_state = 'Could not read state'
+
+            # Cache the current state
+            cache.set('VM' + str(self.id) + '-State', curr_state, 10)
+
+        return curr_state
 
     def get_xml_desc(self, force=False):
         # Try to selects the VM
@@ -435,7 +436,6 @@ class VirtualMachine(VirtualDevice):
             )
             raise self.VirtualMachineException(str(e))
 
-        # migrate(self, dconn, flags, dname, uri, bandwidth):
         try:
             # Will migrate the virtual machine while in running, persist it
             # in destination host and undefine it in the source
@@ -456,6 +456,16 @@ class VirtualMachine(VirtualDevice):
         self.save()
         # Clear cached state
         cache.delete('VM' + str(self.id) + '-State')
+        
+        # If this machine was connected to virtual links they need to migrate too
+        for interface in self.virtualinterface_set.all():
+            # Migrate origin links
+            for link in interface.virtuallink_set_start.all():
+                link.migrate()
+            # Migrate destination links
+            for link in interface.virtuallink_set_end.all():
+                link.migrate()
+            
         return True
 
     # Deploy generic operation encompasses creating the image and defining
@@ -545,7 +555,6 @@ class VirtualMachine(VirtualDevice):
         try:
             self.libvirt_domain = lv_conn.lookupByName(self.name)
         except libvirtError as e:
-            #logger.error('VM ' + self.name + ' not found: ' + str(e))
             raise self.VirtualMachineException(
                 'VM ' + self.name + ' not found: ' + str(e)
             )

@@ -29,7 +29,7 @@ class VirtualInterface(BaseModel):
 
     # Generates mac address based on interface id
     def gen_mac_address(self):
-        mac_str = str(self.id).zfill(12)
+        mac_str = 'a0b0b4' + str(self.id).zfill(6) # Platform mac prefix a0:b0:b4
         return mac_str[0:2] + ":" + mac_str[2:4] + ":" + mac_str[4:6] + ":" + mac_str[6:8] + ":" + mac_str[8:10] + ":" + mac_str[10:12]
 
     def save(self, *args, **kwargs):

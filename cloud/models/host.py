@@ -2,6 +2,9 @@ import commands
 import libvirt
 import logging
 import socket
+import urllib
+import json
+from subprocess import Popen, PIPE
 from django.db import models
 from django.core.cache import cache
 from django.conf import settings
@@ -58,10 +61,13 @@ class Host(Device):
     )
     username = models.CharField(max_length=100, blank=True, null=True)
     password = models.CharField(max_length=100, blank=True, null=True)
-    hostname = models.CharField(max_length=200, default="localhost")
+    hostname = models.CharField(max_length=200, default='localhost')
     port = models.PositiveIntegerField(blank=True, null=True)
     path = models.CharField(max_length=200, blank=True, null=True)
     extraparameters = models.CharField(max_length=200, blank=True, null=True)
+
+    # Open vSwitch connection parameter
+    ovsdb = models.CharField(max_length=200, default='unix:/var/run/openvswitch/db.sock')
 
     # Helpers for SASL authentication (adapted from virtinst)
     def _password_cb(self, creds):
@@ -175,8 +181,7 @@ class Host(Device):
             def_domains = lv_conn.listDefinedDomains()
             active_domains = lv_conn.listDomainsID()
         except libvirtError as e:
-            logger.error('Failed to read domains from hypervisor: ' + lv_conn + ' ' + str(e))
-            raise self.HostException('Failed to read domains from hypervisor: ' + lv_conn + ' ' + str(e))
+            raise self.HostException('Failed to read domains from hypervisor: ' + str(lv_conn) + ' ' + str(e))
 
         for dom_id in active_domains:
             # Get domain info from libvirt
@@ -187,8 +192,7 @@ class Host(Device):
                     "info": dom.info()
                 })
             except libvirtError as e:
-                logger.error('Failed to read domain info from hypervisor: ' + lv_conn + ' ' + str(e))
-                raise self.HostException('Failed to read domains from hypervisor: ' + lv_conn + ' ' + str(e))
+                raise self.HostException('Failed to read domains from hypervisor: ' + str(lv_conn) + ' ' + str(e))
 
         for dom_name in def_domains:
             # Get domain info from libvirt
@@ -199,8 +203,7 @@ class Host(Device):
                     "info": dom.info()
                 })
             except libvirtError as e:
-                logger.error('Failed to read domain info from hypervisor: ' + lv_conn + ' ' + str(e))
-                raise self.HostException('Failed to read domain info from hypervisor: ' + lv_conn + ' ' + str(e))
+                raise self.HostException('Failed to read domain info from hypervisor: ' + str(lv_conn) + ' ' + str(e))
 
         for dom in all_domains:
             # Try to find the defined VM in the local database
@@ -295,12 +298,6 @@ class Host(Device):
             return False
 
         stats = lv_conn.getMemoryStats(libvirt.VIR_NODE_MEMORY_STATS_ALL_CELLS, 0)
-        # Only because of the virtual datacenter, divide by 20 to make
-        # resource allocation work more realistic
-        #stats['cached'] = stats['cached'] / 16
-        #stats['total'] = stats['total'] / 16
-        #stats['buffers'] = stats['buffers'] / 16
-        #stats['free'] = stats['free'] / 16
         return stats
 
     # Reads CPU usage information from libvirt and returns the following structure
@@ -465,9 +462,11 @@ class Host(Device):
         }
         for vm in vms:
             stats['total'] += vm.vcpu
-            vm_state = vm.current_state()
-            if vm_state == 'running':
-                stats['active'] += vm.vcpu
+            stats['active'] += vm.vcpu
+            #TODO: Count active vcpu from active domains (it is raising a warning)
+            #vm_state = vm.current_state()
+            #if vm_state == 'running':
+            #    stats['active'] += vm.vcpu
 
         return stats
 
@@ -587,10 +586,10 @@ class Host(Device):
         return self._ssh_status
 
     def check_ssh_status(self):
-        out = commands.getstatusoutput('ssh root@' + self.hostname + ' "ifconfig"')
+        out = commands.getstatusoutput('ssh -o StrictHostKeyChecking=no root@' + self.hostname + ' "/sbin/ifconfig"')
         if out[0] != 0:
-            message = "Host is not accepting ssh connections. Please install ssh key with 'ssh-copy-id -i /var/www/.ssh/id_rsa.pub root@" + self.hostname + "'"
-            logger.warning(message)
+            message = "Host is not accepting ssh connections (see logs for details). Please install ssh key with 'ssh-copy-id -i /var/www/.ssh/id_rsa.pub root@" + self.hostname + "'"
+            logger.warning(message + ": " + out[1])
         else:
             message = "OK"
 
@@ -602,25 +601,71 @@ class Host(Device):
         return self._openvswitch_status
 
     def check_openvswitch_status(self):
-        ip = socket.gethostbyname(self.hostname)
-        bridge = "hostbr" + str(self.id)
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + ip + ':8888 --timeout=3 br-exists "' + bridge + '"')
+        bridge = self.get_openvswitch_bridge()
+        dpid = 'a0b0b4' + str(self.id).zfill(10)
+        ctrl = settings.SDN_CONTROLLER
+        out = commands.getstatusoutput('ovs-vsctl --db=' + self.ovsdb + ' --timeout=3 br-exists "' + bridge + '"')
         if out[0] != 0:
-            logger.warning('Open vSwitch bridge not found (' + bridge + ') at tcp:' + ip + ':8888, will try to create one. ' + out[1])
+            logger.warning('Open vSwitch bridge not found (' + bridge + ') at ' + self.ovsdb + ', will try to create one. ' + out[1])
             # Will try to create a bridge
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + ip + ':8888 --timeout=3 add-br "' + bridge + '"')
+            out = commands.getstatusoutput('ovs-vsctl --db=' + self.ovsdb + ' ' +
+                                           '--timeout=3 add-br "' + bridge + '" ' +
+                                           '-- set Bridge "' + bridge + '" ' +
+                                           'other_config:datapath-id=' + dpid)
             if out[0] != 0:
-                return 'Could not find bridge (' + bridge + ') at tcp:' + ip + ':8888: ' + out[1]
+                return 'Could not find bridge (' + bridge + ') at ' + self.ovsdb + ': ' + out[1]
             # Setup controller
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + ip + ':8888 --timeout=3 set-controller ' + bridge + ' ' + settings.SDN_CONTROLLER['transport'] + ':' + settings.SDN_CONTROLLER['ip'])
+            out = commands.getstatusoutput('ovs-vsctl --db=' + self.ovsdb + ' --timeout=3 set-controller ' + bridge + ' ' + ctrl['transport'] + ':' + ctrl['ip'] + ':' + str(ctrl['port']))
             if out[0] != 0:
-                return 'Could not set controller ' + settings.SDN_CONTROLLER['ip'] + ':' + settings.SDN_CONTROLLER['transport'] + ' (' + bridge + ') at tcp:' + ip + ':8888: ' + out[1]
+                return 'Could not set controller ' + ctrl['transport'] + ':' + ctrl['ip'] + ':' + ctrl['port'] + ' (' + bridge + ') at ' + self.ovsdb + ': ' + out[1]
 
-        logger.warning('Bridge found (' + bridge + ') at tcp:' + ip + ':8888')
         return 'OK'
+
+    def add_openvswitch_port(self, port):
+        bridge = self.get_openvswitch_bridge()
+
+        # Add interface to the default bridge
+        cmd = ['ovs-vsctl', '--db=' + self.ovsdb, '--timeout=3', '--', '--may-exist', 'add-port', bridge, port]
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        p_out = p.communicate()
+        if p.returncode != 0:
+            raise self.HostException('Could not add port (' + port + ') to bridge (' + bridge + '): ' + p_out[1])
+
+    def del_openvswitch_port(self, port):
+        bridge = self.get_openvswitch_bridge()
+
+        # Add interface to the default bridge
+        cmd = ['ovs-vsctl', '--db=' + self.ovsdb, '--timeout=3', '--', '--if-exists', 'del-port', bridge, port]
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        p_out = p.communicate()
+        if p.returncode != 0:
+            raise self.HostException('Could not delete port (' + port + ') to bridge (' + bridge + '): ' + p_out[1])
+
+    def get_openvswitch_bridge(self):
+        return 'hostbr' + str(self.id)
 
     def __unicode__(self):
         return self.get_driver_display() + u" at " + self.hostname
+
+    # Returns the path in the network to another host
+    # Currently use the controller (Floodlight 0.90) to do so
+    def path_to(self, host):
+        src_dpid = 'a0b0b4' + str(self.id).zfill(10)
+        dst_dpid = 'a0b0b4' + str(host.id).zfill(10)
+        # Use different ports in case source and destination hosts are the same
+        url = "http://%s:8080/wm/topology/route/%s/1/%s/2/json" % (settings.SDN_CONTROLLER['ip'], src_dpid, dst_dpid)
+        try:
+            # Fetch path
+            route_response = urllib.urlopen(url)
+            if route_response.code == 200: # Success
+                route_data = json.loads(route_response.read())
+                return route_data
+            else:
+                logger.warning('Could not find route between %s -> %s (Code: %d)' % (src_dpid, dst_dpid, route_response.code))
+        except IOError as e:
+            logger.warning('Could not connect to the controller: %s' % str(e))
+
+        return None
 
     class HostException(Device.DeviceException):
         pass

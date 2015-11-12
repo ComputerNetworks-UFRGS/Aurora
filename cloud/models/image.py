@@ -1,7 +1,10 @@
 import commands
 import logging
-from django.db import models
 import os
+
+from django.db import models
+from django.conf import settings
+
 from cloud.models.base_model import BaseModel
 
 # Get an instance of a logger
@@ -48,25 +51,26 @@ class Image(BaseModel):
     # is associated with
     def deploy(self, virtual_machine):
         # Create a copy of the VM disk
-        disk_path = "/" + self.image_file.name + "." + str(virtual_machine.id)
+        disk_path = settings.REMOTE_IMAGE_PATH + self.image_file.name + "." + str(virtual_machine.id)
 
         # First sync the local image remotelly to speedup future copies
+        # BUG: rsync will fail in case the host is not in the known_hosts file (for ssh we use StrictHostKeychecking)
         rsync_path = self.image_file.path.replace(self.image_file.name, './'+self.image_file.name)
-        out = commands.getstatusoutput(
-            'rsync --update --relative ' + rsync_path + ' ' +
-            'root@' + virtual_machine.host.hostname + ':/'
-        )
+        rsync_cmd = 'rsync --update --relative ' + rsync_path + ' ' + \
+                    'root@' + virtual_machine.host.hostname + ':' + settings.REMOTE_IMAGE_PATH
+        out = commands.getstatusoutput(rsync_cmd)
         if out[0] != 0:
+            logger.warning(rsync_cmd)
             raise self.ImageException(
                 "Could not copy image: " + out[1]
             )
 
         # Then copy the image for the virtual machine 
-        out = commands.getstatusoutput(
-            'ssh root@' + virtual_machine.host.hostname + ' ' + 
-            '"cp -f /' + self.image_file.name + ' ' + disk_path + '"'
-        )
+        copy_cmd = 'ssh -o StrictHostKeyChecking=no root@' + virtual_machine.host.hostname + ' ' + \
+                   '"cp -f ' + settings.REMOTE_IMAGE_PATH + self.image_file.name + ' ' + disk_path + '"'
+        out = commands.getstatusoutput(copy_cmd)
         if out[0] != 0:
+            logger.warning(copy_cmd)
             raise self.ImageException(
                 "Could not copy image: " + out[1]
             )

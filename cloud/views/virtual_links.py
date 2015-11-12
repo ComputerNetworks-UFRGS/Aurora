@@ -26,6 +26,7 @@ view_vars = {
 
 #Form index filters
 class VirtualLinksIndexFiltersForm(forms.Form):
+    action = "/Aurora/cloud/virtual_links/"
     slices = Slice.objects.all()
     slice_choices = (("", "---------------"), (-1, "--Unbound Virtual Links--"))
     for slc in slices:
@@ -39,7 +40,7 @@ def index(request):
     if form.is_valid():
         s = form.cleaned_data['s']
         if s != '':
-            # Search for unbound Virtual Machines
+            # Search for unbound Virtual Links
             if s == '-1':
                 s = None
             links = VirtualLink.objects.filter(belongs_to_slice=s)
@@ -174,6 +175,7 @@ def new(request):
             link = VirtualLink()
             link.if_start = form.cleaned_data['if_start']
             link.if_end = form.cleaned_data['if_end']
+            link.belongs_to_slice = form.cleaned_data['belongs_to_slice']
             # Save Virtual Link
             link.save()
             

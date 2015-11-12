@@ -44,6 +44,8 @@ urlpatterns = patterns('cloud.views',
     url(r'^hosts/(?P<host_id>\d+)/delete/$', 'hosts.delete'),
     url(r'^hosts/(?P<host_id>\d+)/new_interface/$', 'hosts.new_interface'),
     url(r'^hosts/list_infrastructure/$', 'hosts.list_infrastructure'),
+    url(r'^hosts/list_allocations/$', 'hosts.list_allocations'),
+    url(r'^hosts/list_distances/$', 'hosts.list_distances'),
 
     #Switches
     url(r'^switches/$', 'switches.index', name='cloud-switches-index'),

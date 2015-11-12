@@ -39,6 +39,7 @@ class VirtualLink(BaseModel):
         related_name='virtuallink_set_end'
     )
     state = models.CharField(max_length=10, choices=LINK_STATES, default='created', db_index=True)
+    path = models.TextField(blank=True, null=True)
 
     def current_state(self):
         # Check first internal state
@@ -125,28 +126,16 @@ class VirtualLink(BaseModel):
 
         return True
 
+    # Self migrate links to follow their endpoints
+    def migrate(self):
+        # TODO: find way to migrate links more intelligently, for now just unestablish them 
+        # at one locations and restablish at another
+        self.unestablish()
+        self.establish()
+
     # Check status of virtual link on OpenFlow Controller
     def current_state_of(self):
-        # Forward flow
-        command = 'curl -s http://%s:8080/wm/staticflowentrypusher/list/all/json' % (settings.SDN_CONTROLLER['ip'])
-        result = os.popen(command).read()
-        parsed_result = json.loads(result)
-        logger.debug(command)
-        logger.debug(result)
-
-        for sw in parsed_result:
-            if parsed_result[sw].has_key('link%s.f' % self.id) and parsed_result[sw].has_key('link%s.r' % self.id):
-                # Might have failed before, it is working now
-                if self.state != 'establish':
-                    self.state = 'establish'
-                    self.save()
-                return self.get_state_display()
-
-        # Link was not found in network
-        self.state = 'failed'
-        self.save()
         return self.get_state_display()
-        
 
     # Create the virtual link on OpenFlow Controller
     def establish_of(self):
@@ -166,38 +155,31 @@ class VirtualLink(BaseModel):
         h1 = vm1.host
         vm2 = self.if_end.attached_to.virtualmachine
         h2 = vm2.host
+        br1 = h1.get_openvswitch_bridge()
+        br2 = h2.get_openvswitch_bridge()
         if h1 is None:
             raise self.VirtualLinkException("Target virtual device not deployed (" + str(vm1) + ")")
         if h2 is None:
             raise self.VirtualLinkException("Target virtual device not deployed (" + str(vm2) + ")")
 
-        br1 = "hostbr" + str(h1.id)
-        br2 = "hostbr" + str(h2.id)
-
-        # Add the interfaces to the default bridge
-        h1_ip = socket.gethostbyname(h1.hostname)
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h1_ip + ':8888 --timeout=3 -- --may-exist add-port "' + br1 + '" ' + eth1)
-        if out[0] != 0:
-            raise self.VirtualLinkException('Could not add port (' + eth1 + ') to bridge (' + br1 + '): ' + out[1])
-
-        h2_ip = socket.gethostbyname(h2.hostname)
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h2_ip + ':8888 --timeout=3 -- --may-exist add-port "' + br2 + '" ' + eth2)
-        if out[0] != 0:
-            raise self.VirtualLinkException('Could not add port (' + eth2 + ') to bridge (' + br2 + '): ' + out[1])
+        # Add interfaces to host bridges
+        h1.add_openvswitch_port(eth1)
+        h2.add_openvswitch_port(eth2)
 
         # Update local state to waiting
         self.state = 'waiting'
         self.save()
-        # TODO: temporary implementation with Floodlight
+
+        # TODO: don't use curl, because we need to handle HTTP error codes
         command = 'curl -s http://%s:8080/wm/core/controller/switches/json' % settings.SDN_CONTROLLER['ip']
         result = os.popen(command).read()
         parsed_result = json.loads(result)
         logger.debug(command)
-        logger.debug(result)
+        #logger.debug(result)
 
         # Search for source and destination switches and ports
+        src_switch = src_port = dst_switch = dst_port = None
         for sw in parsed_result:
-            src_switch = src_port = dst_switch = dst_port = None
             for pt in sw['ports']:
                 if pt['name'] == eth1:
                     src_port = pt['portNumber']
@@ -207,6 +189,7 @@ class VirtualLink(BaseModel):
                     dst_port = pt['portNumber']
                 if pt['name'] == br2:
                     dst_switch = sw['dpid']
+
 
         if src_port is None or src_switch is None or dst_port is None or dst_switch is None:
             # Update local state to waiting
@@ -220,51 +203,39 @@ class VirtualLink(BaseModel):
         result = os.popen(command).read()
         parsed_result = json.loads(result)
         logger.debug(command)
-        logger.debug(result)
+        #logger.debug(result)
 
-        # Route format
-        # [
-        #     {
-        #         "port": inport,
-        #         "switch": dpid1
-        #     },
-        #     {
-        #         "port": outport,
-        #         "switch": dpid1
-        #     },
-        #     ...
-        #     {
-        #         "port": inport,
-        #         "switch": dpidN
-        #     },
-        #     {
-        #         "port": outport,
-        #         "switch": dpidN
-        #     }
-        # ]
+        # Set link path to be recorded
+        self.path = result
 
+        # Result is a list of coupled switch in/out ports, every two ports (items on the list) represent a hop
         for i in range(len(parsed_result)):
             if i % 2 == 0:
-                dpid1 = parsed_result[i]['switch']
+                dpid = parsed_result[i]['switch']
                 port1 = parsed_result[i]['port']
             else:
-                dpid2 = parsed_result[i]['switch']
                 port2 = parsed_result[i]['port']
 
-                # IMPORTANT NOTE: current Floodlight StaticflowEntryPusher
+                # IMPORTANT NOTE: current Floodlight StaticFlowEntryPusher (0.90)
                 # assumes all flow entries to have unique name across all switches
 
                 # Forward flow
-                command = 'curl -s -d \'{"switch": "%s", "name":"link%s.f", "src-mac":"%s", "cookie":"0", "priority":"32768", "ingress-port":"%s","active":"true", "actions":"output=%s"}\' http://%s:8080/wm/staticflowentrypusher/json' % (dpid1, self.id, mac1, port1, port2, settings.SDN_CONTROLLER['ip'])
+                command = 'curl -s -d \'{"switch": "%s", "name":"%slink%d.f", "src-mac":"%s", "cookie":"0", "priority":"32768", "ingress-port":"%d","active":"true", "actions":"output=%d"}\' http://%s:8080/wm/staticflowentrypusher/json' % (dpid, dpid.replace(':', ''), self.id, mac1, port1, port2, settings.SDN_CONTROLLER['ip'])
                 result = os.popen(command).read()
                 logger.debug(command)
-                logger.debug(result)
+                #logger.debug(result)
 
                 # Backward flow
-                command = 'curl -s -d \'{"switch": "%s", "name":"link%s.r", "src-mac":"%s", "cookie":"0", "priority":"32768", "ingress-port":"%s","active":"true", "actions":"output=%s"}\' http://%s:8080/wm/staticflowentrypusher/json' % (dpid1, self.id, mac2, port2, port1, settings.SDN_CONTROLLER['ip'])
+                command = 'curl -s -d \'{"switch": "%s", "name":"%slink%d.r", "src-mac":"%s", "cookie":"0", "priority":"32768", "ingress-port":"%d","active":"true", "actions":"output=%d"}\' http://%s:8080/wm/staticflowentrypusher/json' % (dpid, dpid.replace(':', ''), self.id, mac2, port2, port1, settings.SDN_CONTROLLER['ip'])
                 result = os.popen(command).read()
                 logger.debug(command)
-                logger.debug(result)
+                #logger.debug(result)
+
+        logger.info('Link established with length: %d' % (len(parsed_result)/2))
+
+        # Update local state to established
+        self.state = 'establish'
+        self.save()
 
         return True
 
@@ -275,26 +246,70 @@ class VirtualLink(BaseModel):
         if current_state == 'Created':
             return True
 
-        # Forward flow
-        command = 'curl -X DELETE -d \'{"name":"link%s.f"}\' http://%s:8080/wm/staticflowentrypusher/json' % (self.id, settings.SDN_CONTROLLER['ip'])
-        result = os.popen(command).read()
-        logger.debug(command)
-        logger.debug(result)
+        eth1 = self.if_start.target
+        eth2 = self.if_end.target
+        if eth1 == "" or eth2 == "":
+            raise self.VirtualLinkException("Invalid pair of interfaces (" + eth1 + "-" + eth2 + ")")
 
-        # Backward flow
-        command = 'curl -X DELETE -d \'{"name":"link%s.r"}\' http://%s:8080/wm/staticflowentrypusher/json' % (self.id, settings.SDN_CONTROLLER['ip'])
-        result = os.popen(command).read()
-        logger.debug(command)
-        logger.debug(result)
+        vm1 = self.if_start.attached_to.virtualmachine
+        vm2 = self.if_end.attached_to.virtualmachine
+        h1 = vm1.host
+        h2 = vm2.host
+        br1 = h1.get_openvswitch_bridge()
+        br2 = h2.get_openvswitch_bridge()
+        if h1 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(vm1) + ")")
+        if h2 is None:
+            raise self.VirtualLinkException("Target virtual device not deployed (" + str(vm2) + ")")
 
-        #    logger.warning("Could not establish link:" + out[1])
-        #    # Update local state to waiting
-        #    self.state = 'failed'
-        #    self.save()
-        #    raise self.VirtualLinkException("Could not establish link: " + out[1])
+        # Remove interfaces from host bridges
+        h1.del_openvswitch_port(eth1)
+        h2.del_openvswitch_port(eth2)
 
-        self.state = 'inactive'
-        self.save()
+        # No path recorded
+        if self.path is None:
+            self.state = 'failed'
+            self.save()
+            logger.warning('Path for link %s not recorded' % str(self))
+            return True
+
+        # Recover path originally established to remove every entry
+        parsed_result = json.loads(self.path)
+        if type(parsed_result) is not list:
+            self.state = 'failed'
+            self.save()
+            logger.warning('Invalid path for link %s' % str(self))
+            return True
+
+        # Result is a list of coupled switch in/out ports, every two ports (items on the list) represent a hop
+        for i in range(len(parsed_result)):
+            if not (type(parsed_result[i]) is dict and parsed_result[i].has_key('switch') and parsed_result[i].has_key('port')):
+                self.state = 'failed'
+                self.save()
+                logger.warning('Invalid path for link %s' % str(self))
+                return True
+
+            if i % 2 == 0:
+                dpid = parsed_result[i]['switch']
+                port1 = parsed_result[i]['port']
+            else:
+                port2 = parsed_result[i]['port']
+
+            # Forward flow
+            command = 'curl -X DELETE -d \'{"name":"%slink%d.f"}\' http://%s:8080/wm/staticflowentrypusher/json' % ( dpid.replace(':', ''), self.id, settings.SDN_CONTROLLER['ip'] )
+            result = os.popen(command).read()
+            logger.debug(command)
+            #logger.debug(result)
+    
+            # Backward flow
+            command = 'curl -X DELETE -d \'{"name":"%slink%d.r"}\' http://%s:8080/wm/staticflowentrypusher/json' % ( dpid.replace(':', ''), self.id, settings.SDN_CONTROLLER['ip'] )
+            result = os.popen(command).read()
+            logger.debug(command)
+            #logger.debug(result)
+    
+            self.state = 'inactive'
+            self.save()
+
         return True
 
     def establish_ovspatch(self):
@@ -308,18 +323,16 @@ class VirtualLink(BaseModel):
             raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge1) + ")")
         if h2 is None:
             raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge2) + ")")
-        h1_ip = socket.gethostbyname(h1.hostname)
-        h2_ip = socket.gethostbyname(h2.hostname) # Should be the same
 
         # Add patch port in bridge 1
-        cmd = 'ovs-vsctl --db=tcp:' + h1_ip + ':8888 --timeout=3 -- add-port ' + bridge1 + ' ' + port1 + ' -- set interface ' + port1 + ' type=patch options:peer=' + port2
+        cmd = 'ovs-vsctl --db=' + h1.ovsdb + ' --timeout=3 -- add-port ' + bridge1 + ' ' + port1 + ' -- set interface ' + port1 + ' type=patch options:peer=' + port2
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
             raise self.VirtualLinkException("Could not add patch (" + port1 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
 
         # Add patch port in bridge 2
-        cmd = 'ovs-vsctl --db=tcp:' + h2_ip + ':8888 --timeout=3 -- add-port ' + bridge2 + ' ' + port2 + ' -- set interface ' + port2 + ' type=patch options:peer=' + port1
+        cmd = 'ovs-vsctl --db=' + h2.ovsdb + ' --timeout=3 -- add-port ' + bridge2 + ' ' + port2 + ' -- set interface ' + port2 + ' type=patch options:peer=' + port1
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
@@ -338,17 +351,15 @@ class VirtualLink(BaseModel):
             raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge1) + ")")
         if h2 is None:
             raise self.VirtualLinkException("Target virtual device not deployed (" + str(bridge2) + ")")
-        h1_ip = socket.gethostbyname(h1.hostname)
-        h2_ip = socket.gethostbyname(h2.hostname) # Should be the same
 
         # Remove port on source bridge
-        cmd = 'ovs-vsctl --db=tcp:' + h1_ip + ':8888 --timeout=3 -- --if-exists del-port ' + bridge1 + ' ' + port1
+        cmd = 'ovs-vsctl --db=' + h1.ovsdb + ' --timeout=3 -- --if-exists del-port ' + bridge1 + ' ' + port1
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
             raise self.VirtualLinkException("Could not delete patch (" + port1 + ") to bridges (" + bridge1 + "-" + bridge2 + "): " + out[1])
         # Remove port on destination bridge
-        cmd = 'ovs-vsctl --db=tcp:' + h2_ip + ':8888 --timeout=3 -- --if-exists del-port ' + bridge2 + ' ' + port2
+        cmd = 'ovs-vsctl --db=' + h2.ovsdb + ' --timeout=3 -- --if-exists del-port ' + bridge2 + ' ' + port2
         out = commands.getstatusoutput(cmd)
         if out[0] != 0:
             logger.warning(cmd)
@@ -378,14 +389,13 @@ class VirtualLink(BaseModel):
         if bridge_host is None:
             raise self.VirtualLinkException("Target virtual router not deployed (" + str(bridge) + ")")
 
-        h_ip = socket.gethostbyname(bridge_host.hostname)
         # First remove interface from previous ovs (if it was somewhere else)
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 port-to-br ' + eth)
+        out = commands.getstatusoutput('ovs-vsctl --db=' + bridge_host.ovsdb + ' --timeout=3 port-to-br ' + eth)
         if out[0] == 0:
             # Interface was found at another switch
-            out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 del-port "' + out[1] + '" ' + eth)
+            out = commands.getstatusoutput('ovs-vsctl --db=' + bridge_host.ovsdb + ' --timeout=3 del-port "' + out[1] + '" ' + eth)
 
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 add-port "' + bridge + '" ' + eth)
+        out = commands.getstatusoutput('ovs-vsctl --db=' + bridge_host.ovsdb + ' --timeout=3 add-port "' + bridge + '" ' + eth)
         if out[0] != 0:
             raise self.VirtualLinkException("Could not add port (" + eth + ") to bridge (" + bridge + "): " + out[1])
 
@@ -413,63 +423,10 @@ class VirtualLink(BaseModel):
         if bridge_host is None:
             raise self.VirtualLinkException("Target virtual router not deployed (" + str(bridge) + ")")
 
-        h_ip = socket.gethostbyname(bridge_host.hostname)
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:' + h_ip + ':8888 --timeout=3 del-port "' + bridge + '" ' + eth)
+        out = commands.getstatusoutput('ovs-vsctl --db=' + bridge_host.ovsdb + ' --timeout=3 del-port "' + bridge + '" ' + eth)
         if out[0] != 0:
             logger.warning("Could not add port (" + eth + ") to bridge (" + bridge + "): " + out[1])
             raise self.VirtualLinkException("Could not delete port (" + eth + ") to bridge (" + bridge + "): " + out[1])
-
-        return True
-
-    # DEPRECATED: iplink is not in use anymore
-    def establish_iplink(self):
-        eth1 = self.if_start.target
-        eth2 = self.if_end.target
-
-        bridge1 = self.if_start.attached_to.virtualrouter.dev_name
-        bridge2 = self.if_end.attached_to.virtualrouter.dev_name
-        # TODO: Get correct hostname here
-        out = commands.getstatusoutput('ssh root@localhost "ip link add name ' + eth1 + ' type veth peer name ' + eth2 + '; ifconfig ' + eth1 + ' up ; ifconfig ' + eth2 + ' up"')
-        if out[0] != 0:
-            logger.warning("Could not add link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
-            raise self.VirtualLinkException("Could not add link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
-
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 add-port "' + bridge1 + '" ' + eth1)
-        if out[0] != 0:
-            logger.warning("Could not add port (" + eth1 + ") to bridge (" + bridge1 + "): " + out[1])
-            raise self.VirtualLinkException("Could not add port (" + eth1 + ") to bridge (" + bridge1 + "): " + out[1])
-
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 add-port "' + bridge2 + '" ' + eth2)
-        if out[0] != 0:
-            logger.warning("Could not add port (" + eth2 + ") to bridge (" + bridge2 + "): " + out[1])
-            raise self.VirtualLinkException("Could not add port (" + eth2 + ") to bridge (" + bridge2 + "): " + out[1])
-
-        return True
-
-    # DEPRECATED: iplink is not in use anymore
-    def unestablish_iplink(self):
-        eth1 = self.if_start.target
-        eth2 = self.if_end.target
-
-        bridge1 = self.if_start.attached_to.virtualrouter.dev_name
-        bridge2 = self.if_end.attached_to.virtualrouter.dev_name
-
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 del-port "' + bridge1 + '" ' + eth1)
-        if out[0] != 0:
-            logger.warning("Could not delete port (" + eth1 + ") to bridge (" + bridge1 + "): " + out[1])
-            raise self.VirtualLinkException("Could not delete port (" + eth1 + ") to bridge (" + bridge1 + "): " + out[1])
-
-        out = commands.getstatusoutput('ovs-vsctl --db=tcp:127.0.0.1:8888 --timeout=3 del-port "' + bridge2 + '" ' + eth2)
-        if out[0] != 0:
-            logger.warning("Could not delete port (" + eth2 + ") to bridge (" + bridge2 + "): " + out[1])
-            raise self.VirtualLinkException("Could not delete port (" + eth2 + ") to bridge (" + bridge2 + "): " + out[1])
-
-        # ip link will delete the pair of interfaces even if we delete only eth1
-        # TODO: Get correct hostname here
-        out = commands.getstatusoutput('ssh root@localhost "ip link delete ' + eth1 + '"')
-        if out[0] != 0:
-            logger.warning("Could not delete link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
-            raise self.VirtualLinkException("Could not delete link pair (" + eth1 + ") peer (" + eth2 + "): " + out[1])
 
         return True
 

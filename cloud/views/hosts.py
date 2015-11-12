@@ -11,6 +11,7 @@ from cloud.helpers import session_flash, paginate
 from cloud.models.host import Host, DRIVERS, TRANSPORTS
 from cloud.models.interface import Interface, INTERFACE_TYPES, INTERFACE_DUPLEX_TYPE
 from cloud.models.virtual_machine import VirtualMachine
+from cloud.models.virtual_link import VirtualLink
 from cloud.widgets.number_input import NumberInput
 
 # Configure logging for the module name
@@ -118,6 +119,7 @@ class HostForm(forms.Form):
     port = forms.IntegerField(widget=NumberInput(attrs={"max": 65536, "min": 1}), max_value=65536, min_value=1, help_text="(defaults - tls:16514, tcp:16509, ssh:22, local:empty)", required=False)
     path = forms.CharField(max_length=200, required=False)
     extraparameters = forms.CharField(max_length=200, required=False, label="Extra Parameters")
+    ovsdb = forms.CharField(max_length=200, required=False, label="Open vSwitch Database", help_text="e.g., tcp:127.0.0.1:8888")
     
 @login_required
 def new(request):
@@ -138,6 +140,7 @@ def new(request):
             h.port = form.cleaned_data['port']
             h.path = form.cleaned_data['path']
             h.extraparameters = form.cleaned_data['extraparameters']
+            h.ovsdb = form.cleaned_data['ovsdb']
             
             # Save Host to get an ID
             h.save()
@@ -213,6 +216,12 @@ def new_interface(request, host_id):
             i.downlink_speed = form.cleaned_data['downlink_speed']
             i.duplex = form.cleaned_data['duplex']
             i.save()
+
+            # Checks to see if this interface is properly configured (if it is 
+            # not, it will try to configure)
+            ovs_status = i.check_interface_status()
+            if ovs_status != "OK":
+                session_flash.set_flash(request, "Could not configure interface for this host: " + ovs_status, 'danger')
             
             session_flash.set_flash(request, "New Interface successfully created")
             return redirect('/Aurora/cloud/hosts/' + host_id + '/') # Redirect after POST
@@ -295,4 +304,37 @@ def list_infrastructure(request):
                 session_flash.set_flash(request, 'Failed to read domains from hypervisor: ' + lv_conn + ' ' + str(e), 'danger')
 
     return HttpResponse("<pre>" + json.dumps(all_domains, sort_keys=True, indent=2, separators=(',', ': ')) + "</pre>")
+
+@login_required
+def list_allocations(request):
+    ''' Temporary just to keep the infrastructure consistent '''
+    hosts = Host.objects.all()
+
+    allocations = 'host;cpu_allocation;memory_allocation;vms;cpu_total;memory_total\n'
+    for h in hosts:
+        cpu = h.get_cpu_allocation()['total']
+        mem = h.get_memory_allocation()['total']
+        vms = h.get_num_of_vms()
+        tcpu = h.get_info()['cores']
+        tmem = h.get_memory_stats()['total']
+        allocations += '%s;%d;%d;%d;%d;%d\n' % (h.name, cpu, mem, vms, tcpu, tmem)
+
+    return HttpResponse("<pre>" + allocations + "</pre>")
+
+@login_required
+def list_distances(request):
+    ''' Temporary just to keep the infrastructure consistent '''
+    links = VirtualLink.objects.all()
+
+    allocations = 'link;dev_start;dev_end;distance\n'
+    for link in links:
+        if link.if_start.attached_to.is_virtual_machine() and link.if_end.attached_to.is_virtual_machine():
+            dev_start = link.if_start.attached_to.virtualmachine
+            dev_end = link.if_end.attached_to.virtualmachine
+            if dev_start.current_state() != 'running' or dev_end.current_state() != 'running':
+                continue
+            distance = len(dev_start.host.path_to(dev_end.host))/2
+        
+            allocations += '%s;%s;%s;%d\n' % (str(link), str(dev_start), str(dev_end), distance)
+    return HttpResponse("<pre>" + allocations + "</pre>")
 

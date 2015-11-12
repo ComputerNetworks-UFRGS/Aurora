@@ -69,7 +69,7 @@
     </div>
     <div class="col-md-6">
     {% if filter_form %}
-        <form class="form-inline pull-right" action="/Aurora/cloud/virtual_machines/" method="get">{% csrf_token %}
+        <form class="form-inline pull-right" action="{{ filter_form.action }}" method="get">{% csrf_token %}
           {% for field in filter_form %}
             {% if not field.is_hidden %}
               <div class="form-group">
