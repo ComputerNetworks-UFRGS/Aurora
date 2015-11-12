@@ -7,11 +7,11 @@
 
 import time
 import logging
-from manager.models.host import Host
-from manager.models.interface import Interface
-from manager.models.switch import Switch
-from manager.models.port import Port
-from manager.models.device import Device
+from cloud.models.host import Host
+from cloud.models.interface import Interface
+from cloud.models.switch import Switch
+from cloud.models.port import Port
+from cloud.models.device import Device
 
 # Configure logging for the module name
 logger = logging.getLogger(__name__)

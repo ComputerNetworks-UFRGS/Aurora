@@ -27,7 +27,7 @@ then
   exit
 fi
 
-echo -e "country = BR\nstate = RS\nlocality = Porto Alegre\norganization = UFRGS (testing client)\ncn = $HNAME\ntls_www_client\nencryption_key\nsigning_key" > client.info
+echo -e "country = BR\nstate = RS\nlocality = Porto Alegre\norganization = UFRGS (testing client)\ncn = $HNAME\ntls_www_client\nencryption_key\nsigning_key\nexpiration_days=3650" > client.info
 
 certtool --generate-privkey > clientkey.pem
 
@@ -39,21 +39,10 @@ certtool --generate-certificate \
 	--outfile clientcert.pem
 
 # Installing the certificate
-if [ ! -d /etc/pki/libvirt ];
-then
-  mkdir /etc/pki/libvirt
-fi
-cp clientcert.pem /etc/pki/libvirt/clientcert.pem
 if [ ! -d /etc/pki/libvirt/private ];
 then
-  mkdir /etc/pki/libvirt/private
+  mkdir -p /etc/pki/libvirt/private
 fi 
+cp clientcert.pem /etc/pki/libvirt/clientcert.pem
 cp clientkey.pem /etc/pki/libvirt/private/clientkey.pem
-
-# Installing CA
-if [ ! -d /etc/pki/CA ];
-then
-  mkdir /etc/pki/CA
-fi
-cp cacert.pem /etc/pki/CA/cacert.pem
-
+chmod 600 /etc/pki/libvirt/private/clientkey.pem

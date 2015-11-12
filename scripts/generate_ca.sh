@@ -3,13 +3,31 @@
 # Generate Certificate Authority
 if [ ! -d ~/.cert ];
 then
-  mkdir ~/.cert
+    mkdir ~/.cert
 fi
 
 cd ~/.cert
-certtool --generate-privkey > cakey.pem
-echo -e "cn = UFRGS (self-signed)\nca\ncert_signing_key" > ca.info
-certtool --generate-self-signed --load-privkey cakey.pem --template ca.info --outfile cacert.pem
+
+if [ ! -f cakey.pem ];
+then
+    certtool --generate-privkey > cakey.pem
+fi
+
+if [ -f cacert.pem ];
+then
+    echo "A certificate (cacert.pem) file already exists. "
+    while true; do
+        read -p "Would you like to create a new one? (yes or no) " yn
+        case $yn in
+            [Yy]* ) echo -e "cn = UFRGS (self-signed)\nca\ncert_signing_key\nexpiration_days=3650" > ca.info;
+                    certtool --generate-self-signed --load-privkey cakey.pem --template ca.info --outfile cacert.pem;
+                    break
+                    ;;
+            [Nn]* ) exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+  done
+fi
 
 if [ ! -d /etc/pki ];
 then

@@ -2,11 +2,25 @@
 
 if [ $# -lt 1 ];
 then
-  echo "You need to specify the hostname"
-  exit
+    echo "You need to specify the hostname"
+    echo -e "\n\tUsage: generate_server_tls.sh HOSTNAME [ INSTALL_PATH (e.g., /usr/local) ]\n"
+    exit
+fi
+HNAME=$1
+
+if [ $# -eq 2 ];
+then
+    INSTALL_PATH=$2
+else
+    INSTALL_PATH=""
 fi
 
-HNAME=$1
+if [ $# -gt 2 ];
+then
+    echo "Too many arguments"
+    echo -e "\n\tUsage: generate_server_tls.sh HOSTNAME [ INSTALL_PATH (e.g., /usr/local) ]\n"
+    exit
+fi
 
 if [ ! -d ~/.cert ];
 then
@@ -29,7 +43,7 @@ fi
 
 # Server certificate
 echo "##### Creating certificates for host $HNAME #####"
-echo -e "organization = UFRGS (test server)\ncn = $HNAME\ntls_www_server\nencryption_key\nsigning_key" > server.info
+echo -e "organization = UFRGS (test server)\ncn = $HNAME\ntls_www_server\nencryption_key\nsigning_key\nexpiration_days=3650" > server.info
 certtool --generate-privkey > serverkey.pem
 certtool --generate-certificate \
          --template server.info \
@@ -37,18 +51,13 @@ certtool --generate-certificate \
          --load-ca-certificate cacert.pem \
          --load-ca-privkey cakey.pem \
          --outfile servercert.pem
-if [ ! -d /etc/pki ];
+
+# Install certificates
+if [ ! -d $INSTALL_PATH/etc/pki/libvirt/private ];
 then
-  mkdir /etc/pki
+    mkdir -p $INSTALL_PATH/etc/pki/libvirt/private
 fi
-if [ ! -d /etc/pki/libvirt ];
-then
-  mkdir /etc/pki/libvirt
-fi
-cp servercert.pem /etc/pki/libvirt/servercert.pem
-if [ ! -d /etc/pki/libvirt/private ];
-then
-  mkdir /etc/pki/libvirt/private
-fi 
-cp serverkey.pem /etc/pki/libvirt/private/serverkey.pem
+cp servercert.pem $INSTALL_PATH/etc/pki/libvirt/servercert.pem
+cp serverkey.pem $INSTALL_PATH/etc/pki/libvirt/private/serverkey.pem
+chmod 600 $INSTALL_PATH/etc/pki/libvirt/private/serverkey.pem
 
