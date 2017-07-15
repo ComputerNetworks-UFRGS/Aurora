@@ -58,7 +58,7 @@ class Slice(BaseModel):
     def current_state(self):
         return self.get_state_display()
 
-    @transaction.commit_on_success
+    @transaction.atomic
     def save_from_vxdl(self, vxdl):
 
         # Saves the slice to get an id
