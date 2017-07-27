@@ -1,5 +1,14 @@
 #!/bin/bash
 
+function genkey {
+    certtool --generate-privkey > cakey.pem
+}
+
+function gencert {
+    echo -e "cn = UFRGS (self-signed)\nca\ncert_signing_key\nexpiration_days=3650" > ca.info;
+    certtool --generate-self-signed --load-privkey cakey.pem --template ca.info --outfile cacert.pem;
+}
+
 # Generate Certificate Authority
 if [ ! -d ~/.cert ];
 then
@@ -10,7 +19,7 @@ cd ~/.cert
 
 if [ ! -f cakey.pem ];
 then
-    certtool --generate-privkey > cakey.pem
+    genkey
 fi
 
 if [ -f cacert.pem ];
@@ -19,14 +28,15 @@ then
     while true; do
         read -p "Would you like to create a new one? (yes or no) " yn
         case $yn in
-            [Yy]* ) echo -e "cn = UFRGS (self-signed)\nca\ncert_signing_key\nexpiration_days=3650" > ca.info;
-                    certtool --generate-self-signed --load-privkey cakey.pem --template ca.info --outfile cacert.pem;
+            [Yy]* ) gencert
                     break
                     ;;
             [Nn]* ) exit;;
             * ) echo "Please answer yes or no.";;
         esac
-  done
+    done
+else
+    gencert
 fi
 
 if [ ! -d /etc/pki ];
@@ -38,3 +48,4 @@ then
   mkdir /etc/pki/CA
 fi
 cp cacert.pem /etc/pki/CA
+
