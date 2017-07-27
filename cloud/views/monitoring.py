@@ -21,14 +21,7 @@ view_vars = {
 class MonitoringForm(forms.ModelForm):
     class Meta:
         model = Monitoring
-
-#class MonitoringForm(forms.Form):
-#    action = "/Aurora/cloud/monitoring/settings/"
-#    name = forms.CharField(max_length=100)
-#    hostname = forms.CharField(max_length=200)
-#    path = forms.CharField(max_length=200)
-#    username = forms.CharField(max_length=100)
-#    password = forms.CharField(max_length=100)
+        fields = '__all__'
 
 @login_required
 def settings(request):
