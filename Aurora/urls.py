@@ -6,7 +6,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Social auth urls
-    url('', include('social.apps.django_app.urls', namespace='social')),
+    url('', include('social_django.urls', namespace='social')),
     # Aurora urls
     url(r'^$', 'cloud.views.pages.index', name='home'),
     url(r'^not_implemented/$', 'cloud.views.pages.not_implemented',
@@ -25,9 +25,3 @@ urlpatterns = patterns('',
         name='login_error'),
 )
 
-if settings.DEBUG:
-    import debug_toolbar
-    urlpatterns += patterns('',
-        # Debug toolbar urls
-        url(r'^__debug__/', include(debug_toolbar.urls)),
-    )

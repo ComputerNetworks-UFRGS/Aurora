@@ -29,16 +29,22 @@ $ sudo apt-get update
 $ sudo apt-get install apache2 libapache2-mod-wsgi mysql-server python-libvirt python-dev python-pip python-django python-pygments websockify python-mysqldb python-django-debug-toolbar
 ```
 
-*Install [Social Auth](https://github.com/omab/python-social-auth) module from pip*
+*Install [Social Auth](https://github.com/python-social-auth/social-app-django) module from pip*
 
 ```
-$ sudo pip install python-social-auth
+$ sudo pip install social-auth-app-django
 ```
 
 *Install [Django Widget Tweaks](https://github.com/kmike/django-widget-tweaks) module from pip*
 
 ```
 $ sudo pip install django-widget-tweaks
+```
+
+*Install [PyMySQL](https://github.com/PyMySQL/PyMySQL) module from pip*
+
+```
+$ sudo pip install pymysql
 ```
 
 ##### Apache configuration for mod_wsgi
@@ -51,7 +57,7 @@ $ sudo ln -s ../conf-available/aurora.conf aurora.conf
 
 *Note 1: Editing aurora.conf to match your local directory settings may be required.*
 
-*Note 2: Make sure you have an early version of django (1.6 or newer) so that the platform can be installed as a wsgi application.*
+*Note 2: Make sure you have an early version of django (1.8 or newer) so that the platform can be installed as a wsgi application.*
 
 ```
 $ django-admin --version
@@ -122,7 +128,7 @@ $ chmod -R a+w Aurora/logs
 
 ```
 $ cd Aurora
-$ python manage.py syncdb
+$ python manage.py migrate
 $ python manage.py createcachetable aurora_cache
 ```
 
