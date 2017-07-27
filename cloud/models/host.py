@@ -323,7 +323,7 @@ class Host(Device):
         minor = daemon_version / 1000;
         rel = daemon_version % 1000;
 
-        return str(major) + "." + str(minor) + "." + str(rel)
+        return str(major) + '.' + str(minor) + '.' + str(rel)
 
     def get_hypervisor_version(self):
         try:
@@ -331,14 +331,16 @@ class Host(Device):
         except:
             return False
 
-        hv_version = lv_conn.getVersion()
-
-        major = hv_version / 1000000;
-        hv_version %= 1000000;
-        minor = hv_version / 1000;
-        rel = hv_version % 1000;
-
-        return str(major) + "." + str(minor) + "." + str(rel)
+        try:
+            hv_version = lv_conn.getVersion()
+            major = hv_version / 1000000;
+            hv_version %= 1000000;
+            minor = hv_version / 1000;
+            rel = hv_version % 1000;
+            return str(major) + '.' + str(minor) + '.' + str(rel)
+        except libvirtError as e:
+            logger.warning('Failed to get hypervisor version: ' + str(self) + ' ' + str(e))
+            return 'Failed to get hypervisor version'
 
     # Returns hypervisor type (QEMU, XEN, etc.)
     def get_hypervisor_type(self):
