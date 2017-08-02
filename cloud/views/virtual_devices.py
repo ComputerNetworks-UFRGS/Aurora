@@ -1,7 +1,6 @@
-import json
 import logging
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, Http404
+from django.http import JsonResponse, Http404
 from cloud.models.virtual_router import VirtualRouter
 from cloud.models.virtual_machine import VirtualMachine
 from cloud.models.virtual_device import VirtualDevice
@@ -24,10 +23,10 @@ def virtual_devices(request, virtual_device_type):
     for dev in dev_list:
         output.append([
             dev.id,
-            str( dev )
+            str(dev)
         ])
     
-    return HttpResponse(json.dumps(output), mimetype='application/json')
+    return JsonResponse(output, safe=False)
 
 # Webservice to get virtual interface details for a given device
 @login_required
@@ -43,8 +42,8 @@ def virtual_interfaces(request, virtual_device_id):
     for interface in if_list:
         output.append([
             str(interface.id),
-            str( interface )
+            str(interface)
         ])
     
     # Output value will be "i-id" for interfaces and "p-id" for ports
-    return HttpResponse(json.dumps(output), mimetype='application/json')
+    return JsonResponse(output, safe=False)
