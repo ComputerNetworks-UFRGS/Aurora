@@ -306,7 +306,7 @@ def xml(request, virtual_machine_id):
         session_flash.set_flash(request, "Could not read XML description for Virtual Machine %s" % vm.name, "danger")
         return redirect(request.META['HTTP_REFERER'])
     else:
-        response = HttpResponse(mimetype='text/xml')
+        response = HttpResponse(content_type='text/xml')
         response['Content-Disposition'] = 'attachment; filename=VM_XML_' + virtual_machine_id + '.xml'
         response.write(xml_desc)
 
