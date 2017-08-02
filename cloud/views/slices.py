@@ -99,7 +99,7 @@ class SliceForm(forms.Form):
     action = "/Aurora/cloud/slices/new/"
     name = forms.CharField(max_length=200)
     owner = forms.ModelChoiceField(queryset=User.objects.all())
-    vxdl_file = forms.FileField()
+    vxdl_file = forms.FileField(required=False)
     
 @login_required
 def new(request):
@@ -113,16 +113,21 @@ def new(request):
             s.owner = form.cleaned_data['owner']
             s.name = form.cleaned_data['name']
 
-            # Get VXDL description for slice
-            vxdl = request.FILES['vxdl_file'].read()
+            if request.FILES and request.FILES.has_key('vxdl_file'):
+                # Get VXDL description for slice
+                vxdl = request.FILES['vxdl_file'].read()
             
-            # Save slice using uploaded VXDL description
-            try:
-                s.save_from_vxdl(vxdl)
+                # Save slice using uploaded VXDL description
+                try:
+                    s.save_from_vxdl(vxdl)
+                    session_flash.set_flash(request, "New Slice successfully created")
+                except Slice.VXDLException as e:
+                    session_flash.set_flash(request, "Problems creating slice from VXDL: " + e.msg, "danger")
+            
+            else:
+                s.save()
                 session_flash.set_flash(request, "New Slice successfully created")
-            except Slice.VXDLException as e:
-                session_flash.set_flash(request, "Problems creating slice from VXDL: " + e.msg, "danger")
-            
+
             # TODO: Deploy slice using program here
             
             return redirect('cloud-slices-index') # Redirect after POST
