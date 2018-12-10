@@ -26,7 +26,7 @@ $ git clone https://github.com/ComputerNetworks-UFRGS/Aurora.git
 
 ```
 $ sudo apt-get update
-$ sudo apt-get install apache2 libapache2-mod-wsgi mysql-server python-libvirt python-dev python-pip python-django python-pygments websockify python-mysqldb python-django-debug-toolbar
+$ sudo apt-get install apache2 libapache2-mod-wsgi mysql-server python-libvirt python-dev python-pip python-django python-pygments python-mysqldb websockify 
 ```
 
 *Install [Social Auth](https://github.com/python-social-auth/social-app-django) module from pip*
